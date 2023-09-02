@@ -5,7 +5,7 @@
 
 ![GitHub](https://img.shields.io/github/license/sarperavci/cloudflare-bypass)
 
-![](https://github.com/sarperavci/CloudFlareBypassForScraping/example.gif)
+![](https://github.com/sarperavci/CloudflareBypassForScraping/blob/main/example.gif)
 
 
 This Python script is designed for educational purposes and demonstrates a basic method for interacting with websites protected by Cloudflare. Please use this script responsibly and only on websites for which you have proper authorization.
