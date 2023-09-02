@@ -102,7 +102,7 @@ python cloudflare_bypass.py
 To find out how to use DrissionPage, which I used in this script as a controller, check out the documentation of it. Be sure while reading you use an English translater, otherwise it'll be a lot harder :D
 - [Official Github](https://github.com/g1879/DrissionPage)
   
-- [Documantation]([http://g1879.gitee.io/drissionpagedocs/])
+- [Documantation](http://g1879.gitee.io/drissionpagedocs/)
 
 ## Disclaimer
 
