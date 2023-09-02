@@ -3,7 +3,7 @@
 
   
 
-![GitHub](https://img.shields.io/github/license/sarperavci/cloudflare-bypass)
+
 
 ![](https://github.com/sarperavci/CloudflareBypassForScraping/blob/main/example.gif)
 
