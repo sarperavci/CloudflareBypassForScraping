@@ -6,8 +6,8 @@ from DrissionPage import ChromiumPage, ChromiumOptions
 def pass_cycle(_driver: ChromiumPage):
     """Pass"""
     try:
-        if _driver('xpath://div/iframe').s_ele("xpath://input[@type='checkbox']") is not None:
-            _driver('xpath://div/iframe').ele("xpath://input[@type='checkbox']", timeout=0.1).click()
+        if _driver('xpath://div/iframe').s_ele("#spinner-icon") is not None:
+            _driver('xpath://div/iframe').ele("#spinner-icon", timeout=0.1).click()
     except:
         pass
 
