@@ -99,7 +99,7 @@ python cloudflare_bypass.py
 3. The script will attempt to bypass the Cloudflare protection and interact with the specified website. Please be patient as it may take some time to complete. Ensure that you only use this script on websites where you have explicit authorization.
 
 ## Drissionpage
-To find out how to use DrissionPage, which I used in this script as a controller, check out the documentation of it. Be sure while reading you use an English translater, otherwise it'll be a lot harder :D
+To find out how to use DrissionPage, which I used in this script as a controller, check out the documentation of it. Be sure while reading you use an English translate, otherwise it'll be a lot harder :D
 - [Official Github](https://github.com/g1879/DrissionPage)
   
 - [Documantation](http://g1879.gitee.io/drissionpagedocs/)
