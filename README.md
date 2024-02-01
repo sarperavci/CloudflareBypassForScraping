@@ -1,5 +1,5 @@
 
-# Cloudflare Bypass Script - Tested in 08.09.2023
+# Cloudflare Bypass Script - Updated in 01.02.2024
 
  
 
@@ -109,11 +109,3 @@ To find out how to use DrissionPage, which I used in this script as a controller
   
 
 This script is provided solely for educational purposes. Unauthorized use of this script to bypass security measures, including Cloudflare, may violate the law and ethical guidelines. Always obtain proper authorization before interacting with websites.
-
-  
-
-## License
-
-  
-
-This project is licensed under the [MIT License](LICENSE). See the [LICENSE](LICENSE) file for details.
