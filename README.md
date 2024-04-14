@@ -1,111 +1,45 @@
 
-# Cloudflare Bypass Script - Updated in 01.02.2024
-
- 
-
-
+# Cloudflare Bypass Script - Updated in 14.04.2024
 
 ![](https://github.com/sarperavci/CloudflareBypassForScraping/blob/main/example.gif)
 
+**We love scraping, don't we?** But sometimes, we face Cloudflare protection. This script is designed to bypass the Cloudflare protection on websites, allowing you to interact with them programmatically. It uses the [DrissionPage](https://github.com/g1879/DrissionPage) as a controller to interact with the browser and bypass the Cloudflare protection. The script is designed to work with the Chromium browser but it can be easily modified to work with other browsers as well.
 
-This Python script is designed for educational purposes and demonstrates a basic method for interacting with websites protected by Cloudflare. Please use this script responsibly and only on websites for which you have proper authorization.
+# How does this script work?
 
-  
+If you use Selenium, you may have noticed that it is not possible to bypass Cloudflare protection with it. Even you click the "I'm not a robot" button, you will still be stuck in the "Checking your browser before accessing" page.
+This is because Cloudflare protection is able to detect the automation tools and block them, which puts the webdriver infinitely in the "Checking your browser before accessing" page.
 
-## Prerequisites
+As you realize, the script uses the DrissionPage, which is a controller for the browser itself. This way, the browser is not detected as a webdriver and the Cloudflare protection is bypassed.
 
-  
+# What is this not?
 
-Before running the script, ensure that you have the following prerequisites installed:
-
-  
-
-- [Python](https://www.python.org/) 
-
-- [Chromium Browser](https://www.chromium.org/getting-involved/download-chromium) (or Chrome)
-
-  
+This script is not related to bring a solution to bypass if your IP is blocked by Cloudflare. If you are blocked by Cloudflare, you need a clean IP to access the website. This script is designed to bypass the Cloudflare protection, not to bypass the IP block.
 
 ## Installation
 
-  
-
-1. Clone this repository to your local machine:
-
-  
+Only dependency is DrissionPage, you can install it via pip:
 
 ```bash
-
-git clone https://github.com/sarperavci/CloudflareBypassForScraping.git
-
+pip install DrissionPage
 ```
 
-  
+# Usage
 
-2. Navigate to the project directory:
-
-  
+Run the script with the following command:
 
 ```bash
-
-cd CloudflareBypassForScraping
-
+python3 cloudflare_bypass.py
 ```
 
-  
+The script will open a browser window and navigate to the website you want to scrape. For demo, this script navigates a website that has Cloudflare protection. You can change the website URL in the script to navigate to the website you want to scrape.
 
-3. Install the required Python packages:
-
-  
-
-```bash
-
-pip install -r requirements.txt
-
-```
-
-  
-
-## Usage
-
-  
-
-1. Edit the script to specify the URL of the website you want to interact with and don't forget to change browser_path from the file (line:17). It both works in Windows and Linux, without requiring webdriver. It directly works with the browser:
-
-  
-
-```python
-
-# Change this line to your desired website URL
-
-driver.get('https://example.com')
-
-```
-
-  
-
-2. Run the script:
-
-  
-
-```bash
-
-python cloudflare_bypass.py
-
-```
-
-  
-
-3. The script will attempt to bypass the Cloudflare protection and interact with the specified website. Please be patient as it may take some time to complete. Ensure that you only use this script on websites where you have explicit authorization.
+After the Cloudflare protection is bypassed, you can interact with the website programmatically.
 
 ## Drissionpage
-To find out how to use DrissionPage, which I used in this script as a controller, check out the documentation of it. Be sure while reading you use an English translate, otherwise it'll be a lot harder :D
+To find out more about DrissionPage, you can get more information from the following links:
 - [Official Github](https://github.com/g1879/DrissionPage)
   
-- [Documantation](http://g1879.gitee.io/drissionpagedocs/)
+- [Documantation](https://drissionpage.cn/)
 
-## Disclaimer
-
-  
-
-This script is provided solely for educational purposes. Unauthorized use of this script to bypass security measures, including Cloudflare, may violate the law and ethical guidelines. Always obtain proper authorization before interacting with websites.
+Be sure you use a translation tool if you don't speak Chinese.
