@@ -16,7 +16,7 @@ def clickCycle(driver: ChromiumPage):
     return False
 
 def isBypassed(driver: ChromiumPage):
-    title = driver.s_ele('xpath://h3').text.lower()
+    title = driver.title.lower()
     # If the title does not contain "just a moment", it means the page is bypassed.
     # This is a simple check, you can implement more complex checks.
     return "just a moment" not in title
