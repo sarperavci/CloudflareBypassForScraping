@@ -1,9 +1,19 @@
 
-# Cloudflare Bypass Script - Updated in 14.04.2024
+# Cloudflare Bypass Script - Updated in 22.04.2024
 
-![](https://github.com/sarperavci/CloudflareBypassForScraping/blob/main/example.gif)
+**We love scraping, don't we?** But sometimes, we face Cloudflare protection. This script is designed to bypass the Cloudflare protection on websites, allowing you to interact with them programmatically. 
 
-**We love scraping, don't we?** But sometimes, we face Cloudflare protection. This script is designed to bypass the Cloudflare protection on websites, allowing you to interact with them programmatically. It uses the [DrissionPage](https://github.com/g1879/DrissionPage) as a controller to interact with the browser and bypass the Cloudflare protection. The script is designed to work with the Chromium browser but it can be easily modified to work with other browsers as well.
+# Sponsors
+### [Capsolver](https://capsolver.com/?utm_source=github&utm_medium=banner_github&utm_campaign=CloudflareBypassForScraping)
+
+[![Capsolver](docs/capsolver.jpg)](https://capsolver.com/?utm_source=github&utm_medium=banner_github&utm_campaign=CloudflareBypassForScraping)
+
+[Capsolver.com](https://capsolver.com/?utm_source=github&utm_medium=banner_github&utm_campaign=CloudflareBypassForScraping) is
+an AI-powered service that provides automatic captcha solving capabilities. It supports a range of captcha types,
+including reCAPTCHA, hCaptcha, and FunCaptcha, AWS Captcha, Geetest, image captcha among others. Capsolver offers both
+Chrome and Firefox extensions for ease of use, API integration for developers, and various pricing packages to suit
+different needs.
+
 
 # How does this script work?
 
@@ -11,6 +21,10 @@ If you use Selenium, you may have noticed that it is not possible to bypass Clou
 This is because Cloudflare protection is able to detect the automation tools and block them, which puts the webdriver infinitely in the "Checking your browser before accessing" page.
 
 As you realize, the script uses the DrissionPage, which is a controller for the browser itself. This way, the browser is not detected as a webdriver and the Cloudflare protection is bypassed.
+
+# Demo
+![](docs/demo.gif)
+
 
 # What is this not?
 
