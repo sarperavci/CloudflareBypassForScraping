@@ -1,26 +1,7 @@
-import time
+from CloudflareBypasser import CloudflareBypasser
 from DrissionPage import ChromiumPage, ChromiumOptions
+import time
 
-# This code is written for readibility and simplicity. It is not optimized for performance.
-# You can optimize the code by removing the unnecessary sleeps and checks.
-
-
-def clickCycle(driver: ChromiumPage):
-    #reach the captcha button and click it
-    # if iframe does not exist, it means the page is already bypassed.
-    if driver.wait.ele_displayed('xpath://div/iframe',timeout=1.5):
-        time.sleep(1.5)
-        driver('xpath://div/iframe').ele(".ctp-checkbox-label", timeout=2.5).click()
-        # The location of the button may vary time to time. I sometimes check the button's location and update the code.
-        return True
-    return False
-
-def isBypassed(driver: ChromiumPage):
-    title = driver.title.lower()
-    # If the title does not contain "just a moment", it means the page is bypassed.
-    # This is a simple check, you can implement more complex checks.
-    return "just a moment" not in title
- 
 if __name__ == '__main__':
     # Chromium Browser Path
     browser_path = "/usr/bin/google-chrome"
@@ -55,17 +36,8 @@ if __name__ == '__main__':
     driver.get('https://nopecha.com/demo/cloudflare')
 
     # Where the bypass starts
-    while True:
-        time.sleep(2)
-        if isBypassed(driver):
-            print("Bypassed!")
-            break
-
-        # A click may be enough to bypass the captcha, if your IP is clean.
-        # I haven't seen a captcha that requires more than 3 clicks.
-        print("Verification page detected.  Trying to bypass...")
-        time.sleep(2)
-        clickCycle(driver)
+    cf_bypasser = CloudflareBypasser(driver)
+    cf_bypasser.bypass()
 
     print("Enjoy the content!")
 
@@ -74,5 +46,3 @@ if __name__ == '__main__':
 
     time.sleep(5)
     driver.quit()
-
-

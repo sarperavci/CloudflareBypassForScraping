@@ -38,15 +38,23 @@ pip install DrissionPage
 
 # Usage
 
-Run the script with the following command:
+Create a new instance of the `CloudflareBypass` class and call the `bypass` method when you need to bypass the Cloudflare protection.
 
-```bash
-python3 cloudflare_bypass.py
+```python
+from CloudflareBypasser import CloudflareBypasser
+
+driver = ChromiumPage()
+driver.get('https://nopecha.com/demo/cloudflare')
+
+cf_bypasser = CloudflareBypasser(driver)
+cf_bypasser.bypass()
 ```
 
-The script will open a browser window and navigate to the website you want to scrape. For demo, this script navigates a website that has Cloudflare protection. You can change the website URL in the script to navigate to the website you want to scrape.
+You can run the test script to see how it works:
 
-After the Cloudflare protection is bypassed, you can interact with the website programmatically.
+```bash
+python test.py
+```
 
 ## Drissionpage
 To find out more about DrissionPage, you can get more information from the following links:
