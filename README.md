@@ -63,3 +63,13 @@ To find out more about DrissionPage, you can get more information from the follo
 - [Documantation](https://drissionpage.cn/)
 
 Be sure you use a translation tool if you don't speak Chinese.
+
+## Star History
+
+<a href="https://star-history.com/#sarperavci/CloudflareBypassForScraping&Date">
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=sarperavci/CloudflareBypassForScraping&type=Date&theme=dark" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=sarperavci/CloudflareBypassForScraping&type=Date" />
+   <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=sarperavci/CloudflareBypassForScraping&type=Date" />
+ </picture>
+</a>
