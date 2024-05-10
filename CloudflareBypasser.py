@@ -13,7 +13,7 @@ class CloudflareBypasser:
         # if iframe does not exist, it means the page is already bypassed.
         if self.driver.wait.ele_displayed('xpath://div/iframe',timeout=1.5):
             time.sleep(1.5)
-            self.driver('xpath://div/iframe').ele(".ctp-checkbox-label", timeout=2.5).click()
+            self.driver('xpath://div/iframe').ele("Verify you are human", timeout=2.5).click()
             # The location of the button may vary time to time. I sometimes check the button's location and update the code.
 
     def isBypassed(self):
