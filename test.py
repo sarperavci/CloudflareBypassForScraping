@@ -31,7 +31,7 @@ if __name__ == '__main__':
     for argument in arguments:
         options.set_argument(argument)
 
-    driver = ChromiumPage(addr_driver_opts=options)
+    driver = ChromiumPage(addr_or_opts=options)
 
     driver.get('https://nopecha.com/demo/cloudflare')
 
