@@ -11,11 +11,11 @@ class CloudflareBypasser:
     def clickCycle(self):
         #reach the captcha button and click it
         # if iframe does not exist, it means the page is already bypassed.
-        if self.driver.wait.ele_displayed('xpath://div/iframe',timeout=1.5):
+        if self.driver.wait.ele_displayed('#turnstile-wrapper',timeout=1.5):
             time.sleep(1.5)
-            self.driver('xpath://div/iframe').ele("Verify you are human", timeout=2.5).click()
+            self.driver.ele("#turnstile-wrapper", timeout=2.5).click()
             # The location of the button may vary time to time. I sometimes check the button's location and update the code.
-
+ 
     def isBypassed(self):
         title = self.driver.title.lower()
         # If the title does not contain "just a moment", it means the page is bypassed.
