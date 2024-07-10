@@ -26,6 +26,7 @@ if __name__ == '__main__':
         "-disable-features=FlashDeprecationWarning,EnablePasswordsAccountStorage",
         "-deny-permission-prompts",
         "-disable-gpu",
+        "-accept-lang=en-US",
     ]
 
     for argument in arguments:
