@@ -1,4 +1,6 @@
 import json
+import re
+from urllib.parse import urlparse
 
 from CloudflareBypasser import CloudflareBypasser
 from DrissionPage import ChromiumPage, ChromiumOptions
@@ -19,6 +21,7 @@ arguments = [
     "-deny-permission-prompts",
     "-disable-gpu",
     "-accept-lang=en-US",
+    "-disable-l"
 ]
 browser_path = "/usr/bin/google-chrome"
 app = FastAPI()
@@ -26,6 +29,15 @@ app = FastAPI()
 
 class CookieResponse(BaseModel):
     cookies: dict
+
+
+def isSafeURL(url):
+    parsed_url = urlparse(url)
+    ip_pattern = re.compile(r"^(127\.0\.0\.1|localhost|0\.0\.0\.0|::1|10\.\d+\.\d+\.\d+|172\.1[6-9]\.\d+\.\d+|172\.2[0-9]\.\d+\.\d+|172\.3[0-1]\.\d+\.\d+|192\.168\.\d+\.\d+)$")
+    hostname = parsed_url.hostname
+    if (hostname and ip_pattern.match(hostname)) or parsed_url.scheme == "file":
+        return False
+    return True
 
 
 def bypass_cloudlflare(url, retries):
@@ -48,6 +60,8 @@ def bypass_cloudlflare(url, retries):
 
 @app.get("/cookies", response_model=CookieResponse)
 async def get_cookies(url: str, retries: int = 5):
+    if not isSafeURL(url):
+        raise HTTPException(status_code=400, detail="Invalid URL")
     try:
         driver = bypass_cloudlflare(url, retries)
         cookies = driver.cookies(as_dict=True)
@@ -59,6 +73,8 @@ async def get_cookies(url: str, retries: int = 5):
 
 @app.get("/html")
 async def get_cookies(url: str, retries: int = 5):
+    if not isSafeURL(url):
+        raise HTTPException(status_code=400, detail="Invalid URL")
     try:
         driver = bypass_cloudlflare(url, retries)
         html = driver.html
