@@ -54,7 +54,7 @@ python test.py
 
 # Introducing Server Mode
 
-Recently, @frederik-uni has introduced a new feature called "Server Mode". This feature allows you to bypass the Cloudflare protection remotely, either you can get the cookies or the HTML content of the website.
+Recently, [@frederik-uni](https://github.com/frederik-uni) has introduced a new feature called "Server Mode". This feature allows you to bypass the Cloudflare protection remotely, either you can get the cookies or the HTML content of the website.
 
 ## Installation
 
