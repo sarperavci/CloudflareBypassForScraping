@@ -21,7 +21,6 @@ arguments = [
     "-deny-permission-prompts",
     "-disable-gpu",
     "-accept-lang=en-US",
-    "-disable-l"
 ]
 browser_path = "/usr/bin/google-chrome"
 app = FastAPI()
