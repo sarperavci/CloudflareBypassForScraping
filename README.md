@@ -20,23 +20,19 @@ This is because Cloudflare protection is able to detect the automation tools and
 
 As you realize, the script uses the DrissionPage, which is a controller for the browser itself. This way, the browser is not detected as a webdriver and the Cloudflare protection is bypassed.
 
-# Demo
-![](docs/demo.gif)
-
-
-# What is this not?
-
-This script is not related to bring a solution to bypass if your IP is blocked by Cloudflare. If you are blocked by Cloudflare, you need a clean IP to access the website. This script is designed to bypass the Cloudflare protection, not to bypass the IP block.
 
 ## Installation
 
-Only dependency is DrissionPage, you can install it via pip:
+You can install the required packages by running the following command:
 
 ```bash
-pip install DrissionPage
+pip install -r requirements.txt
 ```
 
-# Usage
+## Demo
+![](docs/demo.gif)
+
+## Usage
 
 Create a new instance of the `CloudflareBypass` class and call the `bypass` method when you need to bypass the Cloudflare protection.
 
@@ -55,6 +51,44 @@ You can run the test script to see how it works:
 ```bash
 python test.py
 ```
+
+# Introducing Server Mode
+
+Recently, @frederik-uni has introduced a new feature called "Server Mode". This feature allows you to bypass the Cloudflare protection remotely, either you can get the cookies or the HTML content of the website.
+
+## Installation
+
+You can install the required packages by running the following command:
+
+```bash
+pip install -r server_requirements.txt
+```
+
+## Usage
+
+Start the server by running the following command:
+
+```bash
+python server.py
+```
+
+Two endpoints are available:
+
+- `/cookies?url=<URL>&retries=<>`: This endpoint returns the cookies of the website (including the Cloudflare cookies).
+- `/html?url=<URL>&retries=<>`: This endpoint returns the HTML content of the website.
+
+Send a GET request to the desired endpoint with the URL of the website you want to bypass the Cloudflare protection.
+
+```bash
+sarp@IdeaPad:~/$ curl http://localhost:8000/cookies?url=https://nopecha.com/demo/cloudflare
+{"cookies":{"_ga":"GA1.1.942857389.1723294929","_ga_70K7MBE4SF":"GS1.1.1723294928.1.1.1723295750.11.0.0","cf_clearance":"tAKO42SMzkTFNLh7VMgrcWK87swKOibXF3mcywc4U.Y-1723294918-1.0.1.1-cO8AihASCe6WogYzLl2Q_5tIltWrvHzESncITD2X5ZJr8sF6wIZoAJSYVP9OyJw.J2Y8ST15mh.qx.O8m6ujxA"}}
+```
+
+
+
+# What is this not?
+
+This script is not related to bring a solution to bypass if your IP is blocked by Cloudflare. If you are blocked by Cloudflare, you need a clean IP to access the website. This script is designed to bypass the Cloudflare protection, not to bypass the IP block.
 
 ## Drissionpage
 To find out more about DrissionPage, you can get more information from the following links:
