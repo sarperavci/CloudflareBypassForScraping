@@ -31,6 +31,7 @@ app = FastAPI()
 # Pydantic model for the response
 class CookieResponse(BaseModel):
     cookies: Dict[str, str]
+    user_agent: str
 
 # Function to check if the URL is safe
 def is_safe_url(url: str) -> bool:
@@ -64,8 +65,9 @@ async def get_cookies(url: str, retries: int = 5):
     try:
         driver = bypass_cloudflare(url, retries, log)
         cookies = driver.cookies(as_dict=True)
+        user_agent = driver.user_agent
         driver.quit()
-        return CookieResponse(cookies=cookies)
+        return CookieResponse(cookies=cookies, user_agent=user_agent)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -81,6 +83,7 @@ async def get_html(url: str, retries: int = 5):
 
         response = Response(content=html, media_type="text/html")
         response.headers['cookies'] = cookies_json
+        response.headers['user_agent'] = driver.user_agent
         driver.quit()
         return response
     except Exception as e:
