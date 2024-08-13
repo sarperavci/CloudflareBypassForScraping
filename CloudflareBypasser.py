@@ -1,47 +1,80 @@
 import time
-from DrissionPage import ChromiumPage
+import logging
+import os
+from CloudflareBypasser import CloudflareBypasser
+from DrissionPage import ChromiumPage, ChromiumOptions
 
-class CloudflareBypasser:
-    def __init__(self, driver: ChromiumPage, max_retries=-1, log=True):
-        self.driver = driver
-        self.max_retries = max_retries
-        self.log = log
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler(),
+        logging.FileHandler('cloudflare_bypass.log', mode='w')
+    ]
+)
 
-    def log_message(self, message):
-        if self.log:
-            print(message)
+def get_chromium_options(browser_path: str, arguments: list) -> ChromiumOptions:
+    """
+    Configures and returns Chromium options.
+    
+    :param browser_path: Path to the Chromium browser executable.
+    :param arguments: List of arguments for the Chromium browser.
+    :return: Configured ChromiumOptions instance.
+    """
+    options = ChromiumOptions()
+    options.set_argument('--auto-open-devtools-for-tabs', 'true')
+    options.set_paths(browser_path=browser_path)
+    for argument in arguments:
+        options.set_argument(argument)
+    return options
 
-    def click_verification_button(self):
-        try:
-            if self.driver.wait.ele_displayed('.spacer', timeout=1.5):
-                self.log_message("Verification button found. Attempting to click.")
-                self.driver.ele(".spacer", timeout=2.5).click()
-        except Exception as e:
-            self.log_message(f"Error clicking verification button: {e}")
+def main():
+    # Chromium Browser Path
+    browser_path = os.getenv('CHROME_PATH', "/usr/bin/google-chrome")
+    # Windows Example
+    # browser_path = os.getenv('CHROME_PATH', r"C:/Program Files/Google/Chrome/Application/chrome.exe")
 
-    def is_bypassed(self):
-        try:
-            title = self.driver.title.lower()
-            return "just a moment" not in title
-        except Exception as e:
-            self.log_message(f"Error checking page title: {e}")
-            return False
+    # Arguments to make the browser better for automation and less detectable.
+    arguments = [
+        "-no-first-run",
+        "-force-color-profile=srgb",
+        "-metrics-recording-only",
+        "-password-store=basic",
+        "-use-mock-keychain",
+        "-export-tagged-pdf",
+        "-no-default-browser-check",
+        "-disable-background-mode",
+        "-enable-features=NetworkService,NetworkServiceInProcess,LoadCryptoTokenExtension,PermuteTLSExtensions",
+        "-disable-features=FlashDeprecationWarning,EnablePasswordsAccountStorage",
+        "-deny-permission-prompts",
+        "-disable-gpu",
+        "-accept-lang=en-US",
+    ]
 
-    def bypass(self):
-        try_count = 0
+    options = get_chromium_options(browser_path, arguments)
 
-        while not self.is_bypassed():
-            if 0 < self.max_retries + 1 <= try_count:
-                self.log_message("Exceeded maximum retries. Bypass failed.")
-                break
+    # Initialize the browser
+    driver = ChromiumPage(addr_or_opts=options)
+    try:
+        logging.info('Navigating to the demo page.')
+        driver.get('https://nopecha.com/demo/cloudflare')
 
-            self.log_message(f"Attempt {try_count + 1}: Verification page detected. Trying to bypass...")
-            self.click_verification_button()
+        # Where the bypass starts
+        logging.info('Starting Cloudflare bypass.')
+        cf_bypasser = CloudflareBypasser(driver)
+        cf_bypasser.bypass()
 
-            try_count += 1
-            time.sleep(2)
+        logging.info("Enjoy the content!")
+        logging.info("Title of the page: %s", driver.title)
 
-        if self.is_bypassed():
-            self.log_message("Bypass successful.")
-        else:
-            self.log_message("Bypass failed.")
+        # Sleep for a while to let the user see the result if needed
+        time.sleep(5)
+    except Exception as e:
+        logging.error("An error occurred: %s", str(e))
+    finally:
+        logging.info('Closing the browser.')
+        driver.quit()
+
+if __name__ == '__main__':
+    main()
