@@ -6,6 +6,7 @@ class CloudflareBypasser:
         self.driver = driver
         self.max_retries = max_retries
         self.log = log
+        
 
     def log_message(self, message):
         if self.log:
@@ -13,9 +14,9 @@ class CloudflareBypasser:
 
     def click_verification_button(self):
         try:
-            if self.driver.wait.ele_displayed('.spacer', timeout=1.5):
+            if self.driver.wait.ele_displayed('#GBddK6', timeout=1.5):
                 self.log_message("Verification button found. Attempting to click.")
-                self.driver.ele(".spacer", timeout=2.5).click()
+                self.driver.ele("#GBddK6", timeout=2.5).click()
         except Exception as e:
             self.log_message(f"Error clicking verification button: {e}")
 
@@ -28,6 +29,7 @@ class CloudflareBypasser:
             return False
 
     def bypass(self):
+        
         try_count = 0
 
         while not self.is_bypassed():
