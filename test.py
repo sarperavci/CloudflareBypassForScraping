@@ -23,6 +23,7 @@ def get_chromium_options(browser_path: str, arguments: list) -> ChromiumOptions:
     :return: Configured ChromiumOptions instance.
     """
     options = ChromiumOptions()
+    options.set_argument('--auto-open-devtools-for-tabs', 'true')
     options.set_paths(browser_path=browser_path)
     for argument in arguments:
         options.set_argument(argument)
@@ -55,7 +56,6 @@ def main():
 
     # Initialize the browser
     driver = ChromiumPage(addr_or_opts=options)
-
     try:
         logging.info('Navigating to the demo page.')
         driver.get('https://nopecha.com/demo/cloudflare')
