@@ -23,7 +23,7 @@ def get_chromium_options(browser_path: str, arguments: list) -> ChromiumOptions:
     :return: Configured ChromiumOptions instance.
     """
     options = ChromiumOptions()
-    options.set_argument('--auto-open-devtools-for-tabs', 'true')
+    options.set_argument('--auto-open-devtools-for-tabs', 'true') # we don't need this anymore
     options.set_paths(browser_path=browser_path)
     for argument in arguments:
         options.set_argument(argument)
@@ -63,6 +63,7 @@ def main():
         # Where the bypass starts
         logging.info('Starting Cloudflare bypass.')
         cf_bypasser = CloudflareBypasser(driver)
+        # time.sleep(3) # If the page is slow to load, you can add a delay here.
         cf_bypasser.bypass()
 
         logging.info("Enjoy the content!")

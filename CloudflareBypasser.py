@@ -6,7 +6,50 @@ class CloudflareBypasser:
         self.driver = driver
         self.max_retries = max_retries
         self.log = log
-        
+
+    def search_recursively_shadow_root_with_iframe(self,ele):
+        if ele.shadow_root:
+            if ele.shadow_root.child().tag == "iframe":
+                return ele.shadow_root.child()
+        else:
+            for child in ele.children():
+                result = self.search_recursively_shadow_root_with_iframe(child)
+                if result:
+                    return result
+        return None
+
+    def search_recursively_shadow_root_with_cf_input(self,ele):
+        if ele.shadow_root:
+            if ele.shadow_root.ele("tag:input"):
+                return ele.shadow_root.ele("tag:input")
+        else:
+            for child in ele.children():
+                result = self.search_recursively_shadow_root_with_cf_input(child)
+                if result:
+                    return result
+        return None
+    
+    def locate_cf_button(self):
+        button = None
+        eles = self.driver.eles("tag:input")
+        for ele in eles:
+            if "name" in ele.attrs.keys() and "type" in ele.attrs.keys():
+                if "turnstile" in ele.attrs["name"] and ele.attrs["type"] == "hidden":
+                    button = ele.parent().shadow_root.child()("tag:body").shadow_root("tag:input")
+                    break
+            
+        if button:
+            return button
+        else:
+            # If the button is not found, search it recursively
+            self.log_message("Basic search failed. Searching for button recursively.")
+            ele = self.driver.ele("tag:body")
+            iframe = self.search_recursively_shadow_root_with_iframe(ele)
+            if iframe:
+                button = self.search_recursively_shadow_root_with_cf_input(iframe("tag:body"))
+            else:
+                self.log_message("Iframe not found. Button search failed.")
+            return button
 
     def log_message(self, message):
         if self.log:
@@ -14,9 +57,13 @@ class CloudflareBypasser:
 
     def click_verification_button(self):
         try:
-            if self.driver.wait.ele_displayed('#GBddK6', timeout=1.5):
+            button = self.locate_cf_button()
+            if button:
                 self.log_message("Verification button found. Attempting to click.")
-                self.driver.ele("#GBddK6", timeout=2.5).click()
+                button.click()
+            else:
+                self.log_message("Verification button not found.")
+
         except Exception as e:
             self.log_message(f"Error clicking verification button: {e}")
 
@@ -31,6 +78,7 @@ class CloudflareBypasser:
     def bypass(self):
         
         try_count = 0
+        self.click_verification_button() # Click the button first to avoid false positive of is_bypassed()
 
         while not self.is_bypassed():
             if 0 < self.max_retries + 1 <= try_count:
