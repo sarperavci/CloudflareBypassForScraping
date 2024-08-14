@@ -1,5 +1,5 @@
 
-# Cloudflare Bypass Script - Updated in 22.04.2024
+# Cloudflare Turnstile Page & Captcha Bypass for Scraping
 
 **We love scraping, don't we?** But sometimes, we face Cloudflare protection. This script is designed to bypass the Cloudflare protection on websites, allowing you to interact with them programmatically. 
 
@@ -30,7 +30,7 @@ pip install -r requirements.txt
 ```
 
 ## Demo
-![](docs/demo.gif)
+![](https://cdn.sarperavci.com/xWhiMOmD/vzJylR.gif)
 
 ## Usage
 
@@ -81,10 +81,8 @@ Send a GET request to the desired endpoint with the URL of the website you want 
 
 ```bash
 sarp@IdeaPad:~/$ curl http://localhost:8000/cookies?url=https://nopecha.com/demo/cloudflare
-{"cookies":{"_ga":"GA1.1.942857389.1723294929","_ga_70K7MBE4SF":"GS1.1.1723294928.1.1.1723295750.11.0.0","cf_clearance":"tAKO42SMzkTFNLh7VMgrcWK87swKOibXF3mcywc4U.Y-1723294918-1.0.1.1-cO8AihASCe6WogYzLl2Q_5tIltWrvHzESncITD2X5ZJr8sF6wIZoAJSYVP9OyJw.J2Y8ST15mh.qx.O8m6ujxA"}}
+{"cookies":{"cf_clearance":"SJHuYhHrTZpXDUe8iMuzEUpJxocmOW8ougQVS0.aK5g-1723665177-1.0.1.1-5_NOoP19LQZw4TQ4BLwJmtrXBoX8JbKF5ZqsAOxRNOnW2rmDUwv4hQ7BztnsOfB9DQ06xR5hR_hsg3n8xteUCw"},"user_agent":"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36"}
 ```
-
-
 
 # What is this not?
 
