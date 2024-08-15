@@ -84,6 +84,24 @@ sarp@IdeaPad:~/$ curl http://localhost:8000/cookies?url=https://nopecha.com/demo
 {"cookies":{"cf_clearance":"SJHuYhHrTZpXDUe8iMuzEUpJxocmOW8ougQVS0.aK5g-1723665177-1.0.1.1-5_NOoP19LQZw4TQ4BLwJmtrXBoX8JbKF5ZqsAOxRNOnW2rmDUwv4hQ7BztnsOfB9DQ06xR5hR_hsg3n8xteUCw"},"user_agent":"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36"}
 ```
 
+## Docker
+
+
+You can also run the server in a Docker container. Thanks to [@gandrunx](https://github.com/gandrunx) for Dockerizing the server.
+
+First, build the Docker image:
+
+```bash
+docker build -t cloudflare-bypass .
+```
+
+Then, run the Docker container:
+
+```bash
+docker run -p 8000:8000 cloudflare-bypass
+```
+
+
 # What is this not?
 
 This script is not related to bring a solution to bypass if your IP is blocked by Cloudflare. If you are blocked by Cloudflare, you need a clean IP to access the website. This script is designed to bypass the Cloudflare protection, not to bypass the IP block.
