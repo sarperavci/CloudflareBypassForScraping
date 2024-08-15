@@ -1,58 +1,62 @@
-# Use a base image with Python and necessary tools
-FROM python:3.12-slim
+# Use the official Ubuntu image as the base image
+FROM ubuntu:22.04
 
-# Set environment variables
-ENV PYTHONDONTWRITEBYTECODE=1
-ENV PYTHONUNBUFFERED=1
+# Set environment variables to avoid interactive prompts during build
+ENV DEBIAN_FRONTEND=noninteractive
+ENV DOCKERMODE=true
 
-# Install system dependencies
-RUN apt-get update \
-    && apt-get install -y \
-       wget \
-       curl \
-       gnupg \
-       libgconf-2-4 \
-       libnss3 \
-       libx11-xcb1 \
-       libxcomposite1 \
-       libxdamage1 \
-       libxrandr2 \
-       libxi6 \
-       libxtst6 \
-       libappindicator3-1 \
-       fonts-liberation \
-       libasound2 \
-       libatspi2.0-0 \
-       libgdk-pixbuf2.0-0 \
-       libgtk-3-0 \
-       xdg-utils \
-       libu2f-udev \
-       libvulkan1 \
-    && rm -rf /var/lib/apt/lists/*
+# Install necessary packages for Xvfb and pyvirtualdisplay
+RUN apt-get update && \
+    apt-get install -y \
+        python3 \
+        python3-pip \
+        wget \
+        gnupg \
+        ca-certificates \
+        libx11-xcb1 \
+        libxcomposite1 \
+        libxdamage1 \
+        libxrandr2 \
+        libxss1 \
+        libxtst6 \
+        libnss3 \
+        libatk-bridge2.0-0 \
+        libgtk-3-0 \
+        x11-apps \
+        fonts-liberation \
+        libappindicator3-1 \
+        libu2f-udev \
+        libvulkan1 \
+        libdrm2 \
+        xdg-utils \
+        xvfb \
+        && rm -rf /var/lib/apt/lists/*
 
-# Install Chromium browser
-RUN wget -q https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb \
-    && dpkg -i google-chrome-stable_current_amd64.deb \
-    && apt-get -f install -y \
-    && rm google-chrome-stable_current_amd64.deb
+# Add Google Chrome repository and install Google Chrome
+RUN wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | apt-key add - && \
+    sh -c 'echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" > /etc/apt/sources.list.d/google-chrome.list' && \
+    apt-get update && \
+    apt-get install -y google-chrome-stable
 
-# Set working directory
+# Install Python dependencies including pyvirtualdisplay
+RUN pip3 install --upgrade pip
+RUN pip3 install pyvirtualdisplay
+
+# Set up a working directory
 WORKDIR /app
 
-# Copy requirements and install Python dependencies
-COPY requirements.txt .
-COPY server_requirements.txt .
-
-RUN pip install --upgrade pip \
-    && pip install -r requirements.txt \
-    && pip install -r server_requirements.txt \
-    && pip install uvicorn
-
-# Copy the application code
+# Copy application files
 COPY . .
 
-# Expose the port FastAPI will run on
+# Install Python dependencies
+RUN pip3 install -r requirements.txt
+RUN pip3 install -r server_requirements.txt
+
+# Expose the port for remote debugging
+EXPOSE 9222
+
+# Expose the port for the FastAPI server
 EXPOSE 8000
 
-# Run the application with Uvicorn
-CMD ["uvicorn", "server:app", "--host", "0.0.0.0", "--port", "8000"]
+# Default command
+CMD ["python3", "server.py"]

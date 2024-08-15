@@ -1,19 +1,21 @@
 import json
 import re
+import os
 from urllib.parse import urlparse
-from typing import Dict
 
 from CloudflareBypasser import CloudflareBypasser
 from DrissionPage import ChromiumPage, ChromiumOptions
 from fastapi import FastAPI, HTTPException, Response
 from pydantic import BaseModel
+from typing import Dict
 import argparse
 
-# Define the global variable `log`
-log = True  # Default value
+# Check if running in Docker mode
+DOCKER_MODE = os.getenv("DOCKERMODE", "false").lower() == "true"
 
 # Chromium options arguments
 arguments = [
+    # "--remote-debugging-port=9222",  # Add this line for remote debugging
     "-no-first-run",
     "-force-color-profile=srgb",
     "-metrics-recording-only",
@@ -28,6 +30,7 @@ arguments = [
     "-disable-gpu",
     "-accept-lang=en-US",
 ]
+
 browser_path = "/usr/bin/google-chrome"
 app = FastAPI()
 
@@ -51,14 +54,24 @@ def is_safe_url(url: str) -> bool:
 
 
 # Function to bypass Cloudflare protection
-def bypass_cloudflare(url: str, retries: int, headless: bool) -> ChromiumPage:
-    options = ChromiumOptions()
-    options.set_argument("--auto-open-devtools-for-tabs", "true")
-    options.set_argument("--remote-debugging-port=9222")
-    if headless:
-        options.set_argument("--headless")
-    options.set_argument("--no-sandbox")  # Add no-sandbox for Docker environments
-    options.set_paths(browser_path=browser_path)
+def bypass_cloudflare(url: str, retries: int, log: bool) -> ChromiumPage:
+    from pyvirtualdisplay import Display
+
+    if DOCKER_MODE:
+        # Start Xvfb for Docker
+        display = Display(visible=0, size=(1920, 1080))
+        display.start()
+
+        options = ChromiumOptions()
+        options.set_argument("--auto-open-devtools-for-tabs", "true")
+        options.set_argument("--remote-debugging-port=9222")
+        options.set_argument("--no-sandbox")  # Necessary for Docker
+        options.set_argument("--disable-gpu")  # Optional, helps in some cases
+        options.set_paths(browser_path=browser_path).headless(False)
+    else:
+        options = ChromiumOptions()
+        options.set_argument("--auto-open-devtools-for-tabs", "true")
+        options.set_paths(browser_path=browser_path).headless(False)
 
     driver = ChromiumPage(addr_or_opts=options)
     try:
@@ -68,6 +81,8 @@ def bypass_cloudflare(url: str, retries: int, headless: bool) -> ChromiumPage:
         return driver
     except Exception as e:
         driver.quit()
+        if DOCKER_MODE:
+            display.stop()  # Stop Xvfb
         raise e
 
 
@@ -76,9 +91,8 @@ def bypass_cloudflare(url: str, retries: int, headless: bool) -> ChromiumPage:
 async def get_cookies(url: str, retries: int = 5):
     if not is_safe_url(url):
         raise HTTPException(status_code=400, detail="Invalid URL")
-    headless = True  # Default value, can be overridden by arguments
     try:
-        driver = bypass_cloudflare(url, retries, headless)
+        driver = bypass_cloudflare(url, retries, log)
         cookies = driver.cookies(as_dict=True)
         user_agent = driver.user_agent
         driver.quit()
@@ -92,9 +106,8 @@ async def get_cookies(url: str, retries: int = 5):
 async def get_html(url: str, retries: int = 5):
     if not is_safe_url(url):
         raise HTTPException(status_code=400, detail="Invalid URL")
-    headless = True  # Default value, can be overridden by arguments
     try:
-        driver = bypass_cloudflare(url, retries, headless)
+        driver = bypass_cloudflare(url, retries, log)
         html = driver.html
         cookies_json = json.dumps(driver.cookies(as_dict=True))
 
@@ -109,21 +122,21 @@ async def get_html(url: str, retries: int = 5):
 
 # Main entry point
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Cloudflare bypass API")
+    parser = argparse.ArgumentParser(description="Cloudflare bypass api")
 
     parser.add_argument("--nolog", action="store_true", help="Disable logging")
-    parser.add_argument(
-        "--headless",
-        type=str,
-        choices=["true", "false"],
-        default="true",
-        help="Run in headless mode",
-    )
+    parser.add_argument("--headless", action="store_true", help="Run in headless mode")
 
     args = parser.parse_args()
-    log = not args.nolog
-    headless = args.headless.lower() == "true"
+    if args.headless and not DOCKER_MODE:
+        from pyvirtualdisplay import Display
 
+        display = Display(visible=0, size=(1920, 1080))
+        display.start()
+    if args.nolog:
+        log = False
+    else:
+        log = True
     import uvicorn
 
     uvicorn.run(app, host="0.0.0.0", port=8000)
