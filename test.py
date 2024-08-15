@@ -63,7 +63,10 @@ def main():
         # Where the bypass starts
         logging.info('Starting Cloudflare bypass.')
         cf_bypasser = CloudflareBypasser(driver)
-        # time.sleep(3) # If the page is slow to load, you can add a delay here.
+
+        # If you are solving an in-page captcha (like the one here: https://seleniumbase.io/apps/turnstile), use cf_bypasser.click_verification_button() directly instead of cf_bypasser.bypass().
+        # It will automatically locate the button and click it. Do your own check if needed.
+
         cf_bypasser.bypass()
 
         logging.info("Enjoy the content!")

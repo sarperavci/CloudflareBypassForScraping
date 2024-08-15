@@ -78,7 +78,6 @@ class CloudflareBypasser:
     def bypass(self):
         
         try_count = 0
-        self.click_verification_button() # Click the button first to avoid false positive of is_bypassed()
 
         while not self.is_bypassed():
             if 0 < self.max_retries + 1 <= try_count:

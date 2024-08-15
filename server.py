@@ -29,6 +29,7 @@ arguments = [
     "-deny-permission-prompts",
     "-disable-gpu",
     "-accept-lang=en-US",
+    #"-incognito" # You can add this line to open the browser in incognito mode by default 
 ]
 
 browser_path = "/usr/bin/google-chrome"
