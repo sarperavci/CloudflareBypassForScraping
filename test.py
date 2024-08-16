@@ -31,7 +31,16 @@ def get_chromium_options(browser_path: str, arguments: list) -> ChromiumOptions:
 
 def main():
     # Chromium Browser Path
+    isHeadless = os.getenv('HEADLESS', 'false').lower() == 'true'
+    
+    if isHeadless:
+        from pyvirtualdisplay import Display
+
+        display = Display(visible=0, size=(1920, 1080))
+        display.start()
+
     browser_path = os.getenv('CHROME_PATH', "/usr/bin/google-chrome")
+    
     # Windows Example
     # browser_path = os.getenv('CHROME_PATH', r"C:/Program Files/Google/Chrome/Application/chrome.exe")
 
@@ -79,6 +88,8 @@ def main():
     finally:
         logging.info('Closing the browser.')
         driver.quit()
+        if isHeadless:
+            display.stop()
 
 if __name__ == '__main__':
     main()
