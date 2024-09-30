@@ -32,8 +32,10 @@ arguments = [
     "-accept-lang=en-US",
     #"-incognito" # You can add this line to open the browser in incognito mode by default
 ]
-
-browser_path = "/usr/bin/google-chrome"
+if (DOCKER_MODE):
+    browser_path = "/usr/bin/chromium-browser"
+else:
+    browser_path = "/usr/bin/google-chrome"
 app = FastAPI()
 
 
