@@ -9,6 +9,7 @@ from fastapi import FastAPI, HTTPException, Response
 from pydantic import BaseModel
 from typing import Dict
 import argparse
+import subprocess
 
 # Check if running in Docker mode
 DOCKER_MODE = os.getenv("DOCKERMODE", "false").lower() == "true"
@@ -29,7 +30,7 @@ arguments = [
     "-deny-permission-prompts",
     "-disable-gpu",
     "-accept-lang=en-US",
-    #"-incognito" # You can add this line to open the browser in incognito mode by default 
+    #"-incognito" # You can add this line to open the browser in incognito mode by default
 ]
 
 browser_path = "/usr/bin/google-chrome"
@@ -40,6 +41,35 @@ app = FastAPI()
 class CookieResponse(BaseModel):
     cookies: Dict[str, str]
     user_agent: str
+
+
+# Checks if your local project is up to date
+def is_git_repo_up_to_date(repo_path: str)-> bool:
+    try:
+        subprocess.check_call(['git', '-C', repo_path, 'fetch'])
+
+        branch = subprocess.check_output(
+            ['git', '-C', repo_path, 'rev-parse', '--abbrev-ref', 'HEAD'],
+            text=True,
+            stderr=subprocess.DEVNULL
+        ).strip()
+
+        local_commit = subprocess.check_output(
+            ['git', '-C', repo_path, 'rev-parse', branch],
+            text=True,
+            stderr=subprocess.DEVNULL
+        ).strip()
+
+        remote_commit = subprocess.check_output(
+            ['git', '-C', repo_path, 'rev-parse', f'origin/{branch}'],
+            text=True,
+            stderr=subprocess.DEVNULL
+        ).strip()
+
+        return local_commit == remote_commit
+    except subprocess.CalledProcessError as e:
+        print(f"An error occurred while checking the Git repository: {e}")
+        return False
 
 
 # Function to check if the URL is safe
@@ -85,6 +115,12 @@ def bypass_cloudflare(url: str, retries: int, log: bool) -> ChromiumPage:
         if DOCKER_MODE:
             display.stop()  # Stop Xvfb
         raise e
+
+
+# Endpoint to check if the projct needs to be updated(git pull)
+@app.get("/needs_update", response_model=bool)
+async def needs_update()-> bool:
+    return not is_git_repo_up_to_date(".")
 
 
 # Endpoint to get cookies
