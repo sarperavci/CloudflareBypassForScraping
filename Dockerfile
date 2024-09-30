@@ -54,6 +54,5 @@ EXPOSE 9222
 # Expose the port for the FastAPI server
 EXPOSE 8000
 
-ENTRYPOINT [ "git", "pull" ]
 # Default command
-CMD ["python3", "server.py"]
+CMD git pull && python3 server.py
