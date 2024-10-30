@@ -1,0 +1,61 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+py-modules = ["CloudflareBypasser"]
+
+[project]
+name = "CloudflareBypassForScraping"
+description = "A cloudflare verification bypass script for webscraping"
+readme = "README.md"
+requires-python = ">=3.12"
+
+# This field adds keywords for your project which will appear on the
+# project page. What does your project relate to?
+#
+# Note that this is a list of additional keywords, separated
+# by commas, to be used to assist searching for the distribution in a
+# larger catalog.
+keywords = [
+    "python",
+    "recaptcha",
+    "solver",
+    "cloudflare",
+    "bypass",
+    "cloudflare-bypass",
+    "cloudflare-bypass-script",
+    "cloudflare-bypasser",
+    "drissionpage",
+]
+
+dynamic = ["version"]
+
+# This should be your name or the name of the organization who originally
+# authored the project, and a valid email address corresponding to the name
+# listed.
+authors = [{ name = "Sarper AVCI" }]
+
+# Classifiers help users find your project by categorizing it.
+#
+# For a list of valid classifiers, see https://pypi.org/classifiers/
+classifiers = [
+    # How mature is this project? Common values are
+    #   3 - Alpha
+    #   4 - Beta
+    #   5 - Production/Stable
+    "Development Status :: 4 - Beta",
+
+    # Indicate who your project is intended for
+    "Intended Audience :: Developers",
+
+    # Specify the Python versions you support here. In particular, ensure
+    # that you indicate you support Python 3. These classifiers are *not*
+    # checked by "pip install". See instead "requires-python" key in this file.
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3 :: Only",
+]
+
+dependencies = ["DrissionPage==4.0.5.6"]
