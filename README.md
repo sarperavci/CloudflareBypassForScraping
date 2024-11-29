@@ -33,6 +33,7 @@ Create a new instance of the `CloudflareBypass` class and call the `bypass` meth
 
 ```python
 from CloudflareBypasser import CloudflareBypasser
+from DrissionPage import ChromiumPage
 
 driver = ChromiumPage()
 driver.get('https://nopecha.com/demo/cloudflare')
