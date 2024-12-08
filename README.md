@@ -97,6 +97,10 @@ Then, run the Docker container:
 docker run -p 8000:8000 cloudflare-bypass
 ```
 
+Alternatively, you can skip `docker build` step, and run the container using pre-build image:
+```bash
+docker run -p 8000:8000 ghcr.io/sarperavci/CloudflareBypassForScraping:latest
+```
 
 # What is this not?
 
