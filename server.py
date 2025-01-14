@@ -129,7 +129,7 @@ if __name__ == "__main__":
     display = None
     
     if args.headless or DOCKER_MODE:
-        display = Display(visible=1, size=(1920, 1080))
+        display = Display(visible=0, size=(1920, 1080))
         display.start()
         
         def cleanup_display():
