@@ -10,6 +10,10 @@ from pydantic import BaseModel
 from typing import Dict
 import argparse
 
+from pyvirtualdisplay import Display
+import uvicorn
+import atexit
+
 # Check if running in Docker mode
 DOCKER_MODE = os.getenv("DOCKERMODE", "false").lower() == "true"
 
@@ -56,13 +60,8 @@ def is_safe_url(url: str) -> bool:
 
 # Function to bypass Cloudflare protection
 def bypass_cloudflare(url: str, retries: int, log: bool) -> ChromiumPage:
-    from pyvirtualdisplay import Display
 
     if DOCKER_MODE:
-        # Start Xvfb for Docker
-        display = Display(visible=0, size=(1920, 1080))
-        display.start()
-
         options = ChromiumOptions()
         options.set_argument("--auto-open-devtools-for-tabs", "true")
         options.set_argument("--remote-debugging-port=9222")
@@ -82,8 +81,6 @@ def bypass_cloudflare(url: str, retries: int, log: bool) -> ChromiumPage:
         return driver
     except Exception as e:
         driver.quit()
-        if DOCKER_MODE:
-            display.stop()  # Stop Xvfb
         raise e
 
 
@@ -129,15 +126,20 @@ if __name__ == "__main__":
     parser.add_argument("--headless", action="store_true", help="Run in headless mode")
 
     args = parser.parse_args()
-    if args.headless and not DOCKER_MODE:
-        from pyvirtualdisplay import Display
-
-        display = Display(visible=0, size=(1920, 1080))
+    display = None
+    
+    if args.headless or DOCKER_MODE:
+        display = Display(visible=1, size=(1920, 1080))
         display.start()
+        
+        def cleanup_display():
+            if display:
+                display.stop()
+        atexit.register(cleanup_display)
+    
     if args.nolog:
         log = False
     else:
         log = True
-    import uvicorn
 
     uvicorn.run(app, host="0.0.0.0", port=8000)
