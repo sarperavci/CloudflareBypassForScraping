@@ -17,6 +17,8 @@ import atexit
 # Check if running in Docker mode
 DOCKER_MODE = os.getenv("DOCKERMODE", "false").lower() == "true"
 
+SERVER_PORT = int(os.getenv("SERVER_PORT", 8000))
+
 # Chromium options arguments
 arguments = [
     # "--remote-debugging-port=9222",  # Add this line for remote debugging
@@ -142,4 +144,4 @@ if __name__ == "__main__":
     else:
         log = True
 
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=SERVER_PORT)
