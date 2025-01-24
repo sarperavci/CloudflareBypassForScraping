@@ -70,8 +70,8 @@ python server.py
 
 Two endpoints are available:
 
-- `/cookies?url=<URL>&retries=<>`: This endpoint returns the cookies of the website (including the Cloudflare cookies).
-- `/html?url=<URL>&retries=<>`: This endpoint returns the HTML content of the website.
+- `/cookies?url=<URL>&retries=<>&proxy=<>`: This endpoint returns the cookies of the website (including the Cloudflare cookies).
+- `/html?url=<URL>&retries=<>&proxy=<>`: This endpoint returns the HTML content of the website.
 
 Send a GET request to the desired endpoint with the URL of the website you want to bypass the Cloudflare protection.
 

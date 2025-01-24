@@ -61,7 +61,7 @@ def is_safe_url(url: str) -> bool:
 
 
 # Function to bypass Cloudflare protection
-def bypass_cloudflare(url: str, retries: int, log: bool) -> ChromiumPage:
+def bypass_cloudflare(url: str, retries: int, log: bool, proxy: str = None) -> ChromiumPage:
 
     if DOCKER_MODE:
         options = ChromiumOptions()
@@ -72,9 +72,11 @@ def bypass_cloudflare(url: str, retries: int, log: bool) -> ChromiumPage:
         options.set_paths(browser_path=browser_path).headless(False)
     else:
         options = ChromiumOptions()
-        options.set_argument("--auto-open-devtools-for-tabs", "true")
         options.set_paths(browser_path=browser_path).headless(False)
-
+        
+    if proxy:
+        options.set_proxy(proxy)
+    
     driver = ChromiumPage(addr_or_opts=options)
     try:
         driver.get(url)
@@ -88,12 +90,12 @@ def bypass_cloudflare(url: str, retries: int, log: bool) -> ChromiumPage:
 
 # Endpoint to get cookies
 @app.get("/cookies", response_model=CookieResponse)
-async def get_cookies(url: str, retries: int = 5):
+async def get_cookies(url: str, retries: int = 5, proxy: str = None):
     if not is_safe_url(url):
         raise HTTPException(status_code=400, detail="Invalid URL")
     try:
-        driver = bypass_cloudflare(url, retries, log)
-        cookies = driver.cookies(as_dict=True)
+        driver = bypass_cloudflare(url, retries, log, proxy)
+        cookies = {cookie.get("name", ""): cookie.get("value", " ") for cookie in driver.cookies()}
         user_agent = driver.user_agent
         driver.quit()
         return CookieResponse(cookies=cookies, user_agent=user_agent)
@@ -103,16 +105,15 @@ async def get_cookies(url: str, retries: int = 5):
 
 # Endpoint to get HTML content and cookies
 @app.get("/html")
-async def get_html(url: str, retries: int = 5):
+async def get_html(url: str, retries: int = 5, proxy: str = None):
     if not is_safe_url(url):
         raise HTTPException(status_code=400, detail="Invalid URL")
     try:
-        driver = bypass_cloudflare(url, retries, log)
+        driver = bypass_cloudflare(url, retries, log, proxy)
         html = driver.html
-        cookies_json = json.dumps(driver.cookies(as_dict=True))
-
+        cookies_json = {cookie.get("name", ""): cookie.get("value", " ") for cookie in driver.cookies()}
         response = Response(content=html, media_type="text/html")
-        response.headers["cookies"] = cookies_json
+        response.headers["cookies"] = json.dumps(cookies_json)
         response.headers["user_agent"] = driver.user_agent
         driver.quit()
         return response
