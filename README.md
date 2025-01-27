@@ -102,17 +102,12 @@ Alternatively, you can skip `docker build` step, and run the container using pre
 docker run -p 8000:8000 ghcr.io/sarperavci/cloudflarebypassforscraping:latest
 ```
 
-# What is this not?
+## Example Projects
 
-This script is not related to bring a solution to bypass if your IP is blocked by Cloudflare. If you are blocked by Cloudflare, you need a clean IP to access the website. This script is designed to bypass the Cloudflare protection, not to bypass the IP block.
+Here are some example projects that utilize the CloudflareBypasser Server:
 
-## Drissionpage
-To find out more about DrissionPage, you can get more information from the following links:
-- [Official Github](https://github.com/g1879/DrissionPage)
-  
-- [Documantation](https://drissionpage.cn/)
-
-Be sure you use a translation tool if you don't speak Chinese.
+- [Calibre Web Automated Book Downloader](https://github.com/calibrain/calibre-web-automated-book-downloader) - A tool to download books from calibre web.
+- [Kick Unofficial API](https://github.com/sarperavci/kick-unofficial-api) - A tool to interact with the Kick.com, download videos, send messages, etc.
 
 ## Star History
 
