@@ -1,5 +1,5 @@
 # Use the official Ubuntu image as the base image
-FROM ubuntu:22.04
+FROM --platform=linux/amd64 ubuntu:22.04
 
 # Set environment variables to avoid interactive prompts during build
 ENV DEBIAN_FRONTEND=noninteractive
@@ -33,10 +33,10 @@ RUN apt-get update && \
         && rm -rf /var/lib/apt/lists/*
 
 # Add Google Chrome repository and install Google Chrome
-RUN wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | apt-key add - && \
-    sh -c 'echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" > /etc/apt/sources.list.d/google-chrome.list' && \
-    apt-get update && \
-    apt-get install -y google-chrome-stable
+RUN wget -q -O /usr/share/keyrings/google-chrome.gpg https://dl.google.com/linux/linux_signing_key.pub && \
+    echo "deb [arch=amd64 signed-by=/usr/share/keyrings/google-chrome.gpg] http://dl.google.com/linux/chrome/deb/ stable main" > /etc/apt/sources.list.d/google-chrome.list && \
+    apt-get update --allow-insecure-repositories && \
+    apt-get install -y --allow-unauthenticated google-chrome-stable
 
 # Install Python dependencies including pyvirtualdisplay
 RUN pip3 install --upgrade pip
@@ -60,3 +60,4 @@ EXPOSE 8000
 
 # Default command
 CMD ["python3", "server.py"]
+
