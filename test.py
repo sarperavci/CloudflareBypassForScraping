@@ -22,7 +22,7 @@ def get_chromium_options(browser_path: str, arguments: list) -> ChromiumOptions:
     :param arguments: List of arguments for the Chromium browser.
     :return: Configured ChromiumOptions instance.
     """
-    options = ChromiumOptions()
+    options = ChromiumOptions().auto_port()
     options.set_paths(browser_path=browser_path)
     for argument in arguments:
         options.set_argument(argument)
