@@ -32,11 +32,10 @@ RUN apt-get update && \
         xvfb \
         && rm -rf /var/lib/apt/lists/*
 
-# Add Google Chrome repository and install Google Chrome
-RUN wget -q -O /usr/share/keyrings/google-chrome.gpg https://dl.google.com/linux/linux_signing_key.pub && \
-    echo "deb [arch=amd64 signed-by=/usr/share/keyrings/google-chrome.gpg] http://dl.google.com/linux/chrome/deb/ stable main" > /etc/apt/sources.list.d/google-chrome.list && \
-    apt-get update --allow-insecure-repositories && \
-    apt-get install -y --allow-unauthenticated google-chrome-stable
+# Download specific version of Google Chrome, v126.0.6478.126
+RUN wget https://mirror.cs.uchicago.edu/google-chrome/pool/main/g/google-chrome-stable/google-chrome-stable_126.0.6478.126-1_amd64.deb
+RUN dpkg -i google-chrome-stable_126.0.6478.126-1_amd64.deb
+RUN apt-get install -f
 
 # Install Python dependencies including pyvirtualdisplay
 RUN pip3 install --upgrade pip
