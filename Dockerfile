@@ -1,11 +1,11 @@
-# Use the official Ubuntu image as the base image
-FROM --platform=linux/amd64 ubuntu:22.04
+# Use an image with a desktop environment
+FROM kasmweb/desktop:1.16.0-rolling-daily
 
 # Set environment variables to avoid interactive prompts during build
 ENV DEBIAN_FRONTEND=noninteractive
-ENV DOCKERMODE=true
 
 # Install necessary packages for Xvfb and pyvirtualdisplay
+USER root
 RUN apt-get update && \
     apt-get install -y \
         python3 \
@@ -54,12 +54,12 @@ COPY . .
 RUN pip3 install -r requirements.txt
 RUN pip3 install -r server_requirements.txt
 
-# Expose the port for remote debugging
-EXPOSE 9222
-
 # Expose the port for the FastAPI server
 EXPOSE 8000
 
-# Default command
-CMD ["python3", "server.py"]
+# Copy and set up startup script
+COPY docker_startup.sh /
+RUN chmod +x /docker_startup.sh
 
+# Set the entrypoint directly to the startup script
+ENTRYPOINT ["/docker_startup.sh"]
