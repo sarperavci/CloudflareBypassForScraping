@@ -4,9 +4,12 @@
 **We love scraping, don't we?** But sometimes, we face Cloudflare protection. This script is designed to bypass the Cloudflare protection on websites, allowing you to interact with them programmatically. 
 
 # Sponsors
-### [Capsolver](https://www.capsolver.com/?utm_source=github&utm_medium=ads&utm_campaign=scraping&utm_term=CloudflareBypassForScraping)
 
-[![Capsolver](docs/capsolver.png)](https://www.capsolver.com/?utm_source=github&utm_medium=ads&utm_campaign=scraping&utm_term=CloudflareBypassForScraping)
+### [2Captcha](https://2captcha.com/)
+
+🔥 2Captcha - best [captcha solver](https://2captcha.com/) and [residential proxy service](https://2captcha.com/proxy/residential-proxies) – fast, secure. 50% proxy off available - [get discount](https://2captcha.com/proxy?openAddTrafficModal=10&utm_campaign=blackfriday)!
+
+[![2Captcha](https://github.com/user-attachments/assets/80354169-0f6a-484c-a0c1-06a0b0977bd7)](https://2captcha.com/)
 
 # How does this script work?
 
