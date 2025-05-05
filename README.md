@@ -3,14 +3,6 @@
 
 **We love scraping, don't we?** But sometimes, we face Cloudflare protection. This script is designed to bypass the Cloudflare protection on websites, allowing you to interact with them programmatically. 
 
-# Sponsors
-
-### [2Captcha](https://2captcha.com/)
-
-🔥 2Captcha - best [captcha solver](https://2captcha.com/) and [residential proxy service](https://2captcha.com/proxy/residential-proxies) – fast, secure. 50% proxy off available - [get discount](https://2captcha.com/proxy?openAddTrafficModal=10&utm_campaign=blackfriday)!
-
-[![2Captcha](https://github.com/user-attachments/assets/80354169-0f6a-484c-a0c1-06a0b0977bd7)](https://2captcha.com/)
-
 # How does this script work?
 
 If you use Selenium, you may have noticed that it is not possible to bypass Cloudflare protection with it. Even you click the "I'm not a robot" button, you will still be stuck in the "Checking your browser before accessing" page.
