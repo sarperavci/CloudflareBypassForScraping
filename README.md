@@ -6,7 +6,7 @@
 
 ### Scrapeless
 
-![https://www.scrapeless.com/en/product/scraping-browser?utm_source=github&utm_campaign=sarperavci](https://github.com/user-attachments/assets/783ce396-fa8c-4e10-846e-86d0ba0d0144)
+[![](https://github.com/user-attachments/assets/783ce396-fa8c-4e10-846e-86d0ba0d0144)](https://www.scrapeless.com/en/product/scraping-browser?utm_source=github&utm_campaign=sarperavci)
 
 If you're looking for a long-term and stable solution to bypass Cloudflare, CAPTCHA challenges, and sophisticated bot detection systems, we highly recommend [Scrapeless Scraping Browser](https://www.scrapeless.com/en/product/scraping-browser?utm_source=github&utm_campaign=sarperavci).
 
