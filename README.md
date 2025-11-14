@@ -20,7 +20,24 @@
 
 In terms of cost, Scrapeless browser usage is only 1/8 of Browserbase, significantly cutting overall expenses.  
 It also offers a [**Scraping API**](https://www.scrapeless.com/en/product/scraping-api?utm_source=github&utm_campaign=sarperavci)**、[Deep SerpApi](https://www.scrapeless.com/en/product/deep-serp-api?utm_source=github&utm_campaign=sarperavci) and [Proxies](https://www.scrapeless.com/en/product/proxies?utm_source=github&utm_campaign=sarperavci) services**.  
-👉 Learn more: [Scrapeless Browser](https://www.scrapeless.com/en/product/scraping-browser?utm_source=github&utm_campaign=sarperavci) | [Documentation](https://docs.scrapeless.com/en/scraping-browser/quickstart/introduction/?utm_source=github&utm_campaign=sarperavci)  
+👉 Learn more: [Scrapeless Browser](https://www.scrapeless.com/en/product/scraping-browser?utm_source=github&utm_campaign=sarperavci) | [Documentation](https://docs.scrapeless.com/en/scraping-browser/quickstart/introduction/?utm_source=github&utm_campaign=sarperavci)
+
+### ThorData
+
+[![](https://github.com/user-attachments/assets/1aa1a5a0-d5bc-44bd-b446-9990bc898242)](https://www.thordata.com/?ls=github&lk=scraping)
+
+[**ThorData Web Scraper**](https://www.thordata.com/products/web-scraper/?ls=github&lk=scraping) provides unblockable proxy infrastructure and scraping solutions for reliable, real-time web data extraction at scale. Perfect for AI training data collection, web automation, and large-scale scraping operations that require high performance and stability.  
+**Key Advantages of ThorData:**
+
+* **Massive proxy network:** Access to 60M+ ethically sourced residential, mobile, ISP, and datacenter IPs across 190+ countries.  
+* **Enterprise-grade reliability:** 99.9% uptime with ultra-low latency (<0.5s response time) for uninterrupted data collection.  
+* **Flexible proxy types:** Choose from residential, mobile (4G/5G), static ISP, or datacenter proxies based on your needs.  
+* **Cost-effective pricing:** Starting from $1.80/GB for residential proxies with no traffic expiration and pay-as-you-go model.  
+* **Advanced targeting:** City-level geolocation targeting with automatic IP rotation and unlimited bandwidth options.  
+* **Ready-to-use APIs:** 120+ scraper APIs and comprehensive datasets purpose-built for AI and data science workflows.
+
+ThorData is SOC2, GDPR, and CCPA compliant, trusted by 4,000+ enterprises for secure web data extraction.  
+👉 Learn more: [ThorData Web Scraper](https://www.thordata.com/products/web-scraper/?ls=github&lk=scraping) | [Get Started](https://www.thordata.com/?ls=github&lk=scraping)  
 
 
 
