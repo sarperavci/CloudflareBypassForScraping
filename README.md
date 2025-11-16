@@ -1,5 +1,7 @@
 # Cloudflare Bypass for Scraping
 
+> ⭐ **Thank you for 1,800+ stars!** Introducing **Version 2.0** with enhanced request mirroring, improved caching and better reliability for bypassing Cloudflare protection.
+
 Bypass Cloudflare protection with ease. Supports cookie generation and request mirroring for any HTTP method. 
 
 ## Sponsors
@@ -78,7 +80,7 @@ curl "http://localhost:8000/api/data" -H "x-hostname: example-site-protected-wit
 
 # POST request  
 curl -X POST "http://localhost:8000/api/submit" \
-  -H "x-hostname: api.example.com" \
+  -H "x-hostname: cf-protected-website.com" \
   -H "Content-Type: application/json" \
   -d '{"key": "value"}'
 ```
