@@ -1,0 +1,15 @@
+services:
+  cloudflare-bypass:
+    image: ghcr.io/sarperavci/cloudflarebypassforscraping:latest
+    container_name: cloudflare-bypass
+    ports:
+      - "8000:8000"
+    environment:
+      - WORKERS=3
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+          cpus: '2'
+    shm_size: 2g
+    restart: unless-stopped 

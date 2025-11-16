@@ -1,65 +1,73 @@
-# Use an image with a desktop environment
-FROM kasmweb/desktop:1.16.0-rolling-daily
+FROM ubuntu:rolling
 
 # Set environment variables to avoid interactive prompts during build
 ENV DEBIAN_FRONTEND=noninteractive
-
-# Install necessary packages for Xvfb and pyvirtualdisplay
+# Install system dependencies for Chrome and Python packages
 USER root
-RUN apt-get update && \
-    apt-get install -y \
-        python3 \
-        python3-pip \
-        wget \
-        gnupg \
-        ca-certificates \
-        libx11-xcb1 \
-        libxcomposite1 \
-        libxdamage1 \
-        libxrandr2 \
-        libxss1 \
-        libxtst6 \
-        libnss3 \
-        libatk-bridge2.0-0 \
-        libgtk-3-0 \
-        x11-apps \
-        fonts-liberation \
-        libappindicator3-1 \
-        libu2f-udev \
-        libvulkan1 \
-        libdrm2 \
-        xdg-utils \
-        xvfb \
-        libasound2 \
-        libcurl4 \
-        libgbm1 \
-        && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y \
+    software-properties-common \
+    python3-pip \
+    python3-venv \
+    wget \
+    gnupg \
+    curl \
+    xvfb \
+    libgtk-3-0 \
+    libgtk-3-dev \
+    libxss1 \
+    libxtst6 \
+    libxrandr2 \
+    libasound2t64 \
+    libpangocairo-1.0-0 \
+    libatk1.0-0 \
+    libcairo-gobject2 \
+    libgdk-pixbuf-2.0-0 \
+    libdbus-glib-1-2 \
+    libxt6 \
+    libxcomposite1 \
+    libxdamage1 \
+    libxext6 \
+    libxfixes3 \
+    libxrender1 \
+    libxi6 \
+    fonts-liberation \
+    libnss3 \
+    lsb-release \
+    && rm -rf /var/lib/apt/lists/*
 
-# Download and install specific version of Google Chrome
-RUN wget https://mirror.cs.uchicago.edu/google-chrome/pool/main/g/google-chrome-stable/google-chrome-stable_126.0.6478.126-1_amd64.deb && \
-    dpkg -i google-chrome-stable_126.0.6478.126-1_amd64.deb && \
-    rm google-chrome-stable_126.0.6478.126-1_amd64.deb
 
-# Install Python dependencies including pyvirtualdisplay
-RUN pip3 install --upgrade pip
-RUN pip3 install pyvirtualdisplay
+WORKDIR /app
+COPY . .
+# Copy requirements.txt and install dependencies
+COPY requirements.txt .
 
-# Set up a working directory
+# Change ownership of app directory to ubuntu first
+RUN chown -R ubuntu:ubuntu /app
+
+# Switch to ubuntu user to create venv and install packages
+USER ubuntu
+
+# Create and activate virtual environment as ubuntu user
+RUN python3 -m venv /app/venv
+ENV PATH="/app/venv/bin:$PATH"
+
+# Install pip and requirements in virtual environment
+RUN pip install --upgrade pip
+RUN pip install --no-cache-dir -r server_requirements.txt
+
+# Fetch Camoufox as ubuntu user
+RUN camoufox fetch
+
+# Switch back to root for remaining setup
+USER root
 WORKDIR /app
 
-# Copy application files
-COPY . .
 
-# Install Python dependencies
-RUN pip3 install -r requirements.txt
-RUN pip3 install -r server_requirements.txt
+# Fix permissions for playwright_captcha addon directory (needs write access at runtime)
+RUN chmod -R 777 /app/venv/lib/python*/site-packages/playwright_captcha/utils/camoufox_add_init_script/addon/ || true
 
-# Expose the port for the FastAPI server
-EXPOSE 8000
+# Switch to ubuntu user for runtime
+USER ubuntu
 
-# Copy and set up startup script
-COPY docker_startup.sh /
-RUN chmod +x /docker_startup.sh
-
-# Set the entrypoint directly to the startup script
-ENTRYPOINT ["/docker_startup.sh"]
+# RUN the application
+CMD ["python3", "server.py"]
