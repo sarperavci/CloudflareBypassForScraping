@@ -15,7 +15,7 @@ class BrowserConfig:
         
     @staticmethod
     def get_firefox_headers() -> Dict[str, str]:
-        """Get Firefox-specific headers without Chrome sec-ch-ua headers."""
+        """Get Firefox-specific headers."""
         return {
             'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
             'Accept-Language': 'en-US,en;q=0.5',
@@ -37,7 +37,7 @@ class BrowserConfig:
             selected_os = random.choice(OPERATING_SYSTEMS)
         
         if firefox_version is None:
-            firefox_version = random.randint(140, 145)
+            firefox_version = random.randint(140, 145) # Recent Firefox versions
         
         # Random screen resolution
         screen_width, screen_height = random.choice(SCREEN_RESOLUTIONS)
