@@ -1,10 +1,5 @@
-"""
-Browser configuration utilities for Camoufox setup with integrated UA generation.
-"""
-
 import random
-import logging
-from typing import Optional, Dict, List, Tuple
+from typing import Optional, Dict
 
 OPERATING_SYSTEMS = ["windows", "macos", "linux"]
 

@@ -8,9 +8,9 @@ from urllib.parse import urlparse
 from fastapi import FastAPI, HTTPException, Request, Response, Query, Depends
 from fastapi.responses import JSONResponse
 
-from ..core.bypasser import CamoufoxBypasser
-from ..core.mirror import RequestMirror
-from .models import (
+from cf_bypasser.core.bypasser import CamoufoxBypasser
+from cf_bypasser.core.mirror import RequestMirror
+from cf_bypasser.server.models import (
     HealthResponse, CookieRequest, CookieResponse, MirrorRequestHeaders,
     MirrorResponse, CacheStatsResponse, CacheClearResponse, ErrorResponse,
     MirrorRequestInfo, CookieGenerationInfo

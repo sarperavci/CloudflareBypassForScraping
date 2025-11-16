@@ -6,8 +6,8 @@ from urllib.parse import urlparse, urljoin
 
 from curl_cffi.requests import AsyncSession
 
-from .bypasser import CamoufoxBypasser
-from ..utils.config import BrowserConfig
+from cf_bypasser.core.bypasser import CamoufoxBypasser
+from cf_bypasser.utils.config import BrowserConfig
 
 
 class RequestMirror:

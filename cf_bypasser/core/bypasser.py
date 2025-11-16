@@ -9,8 +9,9 @@ from camoufox.async_api import AsyncCamoufox
 from playwright_captcha import CaptchaType, ClickSolver, FrameworkType
 from playwright_captcha.utils.camoufox_add_init_script.add_init_script import get_addon_path
 
-from ..cache.cookie_cache import CookieCache
-from ..utils.config import BrowserConfig, OPERATING_SYSTEMS
+from cf_bypasser.utils.misc import md5_hash
+from cf_bypasser.cache.cookie_cache import CookieCache
+from cf_bypasser.utils.config import BrowserConfig, OPERATING_SYSTEMS
 
 # Get addon path for Camoufox init script workaround
 ADDON_PATH = get_addon_path()
@@ -201,7 +202,7 @@ class CamoufoxBypasser:
         try:
             
             hostname = urlparse(url).netloc
-            cache_key = hostname + proxy if proxy else ""            
+            cache_key = md5_hash(hostname + proxy if proxy else "")            
             # Try to get cached cookies first
             cached = self.cookie_cache.get(cache_key)
             if cached:
