@@ -2,13 +2,6 @@ from typing import Dict, List, Optional, Any
 from pydantic import BaseModel, Field, HttpUrl, field_validator
 
 
-class HealthResponse(BaseModel):
-    """Health check response model."""
-    status: str = Field(..., description="Health status of the service")
-    version: str = Field(..., description="Version of the service")
-    features: List[str] = Field(..., description="List of enabled features")
-
-
 class CookieRequest(BaseModel):
     """Request model for cookie endpoint."""
     url: HttpUrl = Field(..., description="Target URL to get cookies for")

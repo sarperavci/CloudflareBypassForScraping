@@ -11,7 +11,7 @@ from fastapi.responses import JSONResponse
 from cf_bypasser.core.bypasser import CamoufoxBypasser
 from cf_bypasser.core.mirror import RequestMirror
 from cf_bypasser.server.models import (
-    HealthResponse, CookieRequest, CookieResponse, MirrorRequestHeaders,
+    CookieRequest, CookieResponse, MirrorRequestHeaders,
     MirrorResponse, CacheStatsResponse, CacheClearResponse, ErrorResponse,
     MirrorRequestInfo, CookieGenerationInfo
 )
@@ -76,29 +76,6 @@ def is_safe_url(url: str) -> bool:
 def setup_routes(app: FastAPI):
     """Setup all routes for the FastAPI application."""
     
-    @app.get("/health", response_model=HealthResponse)
-    async def health_check():
-        """
-        Health check endpoint with feature information.
-        Returns the current status and enabled features of the service.
-        """
-        return HealthResponse(
-            status="healthy",
-            version="2.0.0",
-            features=[
-                "cookie_caching",
-                "request_mirroring", 
-                "direct_proxy_support",
-                "firefox_only_impersonation",
-                "no_chrome_sec_headers",
-                "backward_compatibility",
-                "403_cache_invalidation",
-                "bypass_cache_header",
-                "request_response_models",
-                "enhanced_logging"
-            ]
-        )
-
     @app.get("/cookies", response_model=CookieResponse, responses={400: {"model": ErrorResponse}, 500: {"model": ErrorResponse}})
     async def get_cookies(
         url: str = Query(..., description="Target URL to get cookies for"),
@@ -169,7 +146,7 @@ def setup_routes(app: FastAPI):
         """
         
         # Skip mirroring for specific endpoints
-        if path in ["health", "cookies"] or path.startswith("cache"):
+        if path in ["cookies"] or path.startswith("cache"):
             raise HTTPException(status_code=404, detail="Not found")
         
         try:
