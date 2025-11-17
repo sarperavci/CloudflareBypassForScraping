@@ -182,8 +182,17 @@ class RequestMirror:
                     await asyncio.sleep(.5)
                     continue
                 
+                # remove the Content-Encoding and Content-Length headers
+                final_headers = {}
+                for k, v in response_headers.items():
+                    k_lower = k.lower()
+                    if k_lower == "content-encoding":
+                        final_headers[k] = "identity"
+                    elif k_lower == "content-length":
+                        final_headers[k] = str(len(response.content))
+                
                 logging.info(f"Request to {hostname} completed with status {status_code}")
-                return status_code, response_headers, response_content
+                return status_code, final_headers, response_content
                 
             except Exception as e:
                 if attempt < max_retries:
