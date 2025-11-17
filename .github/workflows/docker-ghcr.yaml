@@ -2,7 +2,7 @@ name: Build and publish a Docker image to ghcr.io
 on:
   push:
     branches:
-      - main
+      - legacy
 
 jobs:
   docker_publish:
