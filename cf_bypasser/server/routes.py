@@ -11,7 +11,7 @@ from fastapi.responses import JSONResponse
 from cf_bypasser.core.bypasser import CamoufoxBypasser
 from cf_bypasser.core.mirror import RequestMirror
 from cf_bypasser.server.models import (
-    CookieRequest, CookieResponse, HtmlResponse, MirrorRequestHeaders,
+    CookieRequest, CookieResponse, MirrorRequestHeaders,
     MirrorResponse, CacheStatsResponse, CacheClearResponse, ErrorResponse,
     MirrorRequestInfo, CookieGenerationInfo
 )
@@ -130,15 +130,15 @@ def setup_routes(app: FastAPI):
             logger.error(f"Error getting cookies for {url}: {e}")
             raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
-    @app.get("/html", response_model=HtmlResponse, responses={400: {"model": ErrorResponse}, 500: {"model": ErrorResponse}})
+    @app.get("/html", responses={400: {"model": ErrorResponse}, 500: {"model": ErrorResponse}})
     async def get_html(
         url: str = Query(..., description="Target URL to get HTML content for"),
         retries: int = Query(5, ge=1, le=10, description="Number of retry attempts"),
         proxy: Optional[str] = Query(None, description="Proxy URL (optional)")
     ):
         """
-        Get HTML content and Cloudflare clearance cookies for a URL.
-        Returns the full HTML content along with cookies and user agent.
+        Get HTML content from a URL after bypassing Cloudflare protection.
+        Returns the raw HTML content directly.
         """
         # Validate URL
         if not is_safe_url(url):
@@ -174,13 +174,16 @@ def setup_routes(app: FastAPI):
             logger.info(f"Successfully generated HTML content ({content_length} chars) and {len(data['cookies'])} cookies in {generation_time}ms")
             logger.info(f"Cloudflare cookies: {cf_cookies}")
             
-            return HtmlResponse(
-                html=data["html"],
-                cookies=data["cookies"],
-                user_agent=data["user_agent"],
-                url=data["url"],
-                status_code=data["status_code"],
-                content_length=content_length
+            # Return raw HTML content with proper headers
+            return Response(
+                content=data["html"],
+                media_type="text/html",
+                headers={
+                    "x-cf-bypasser-cookies": str(len(data["cookies"])),
+                    "x-cf-bypasser-user-agent": data["user_agent"],
+                    "x-cf-bypasser-final-url": data["url"],
+                    "x-processing-time-ms": str(generation_time)
+                }
             )
             
         except HTTPException:
