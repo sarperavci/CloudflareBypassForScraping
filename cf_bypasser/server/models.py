@@ -22,6 +22,16 @@ class CookieResponse(BaseModel):
     user_agent: str = Field(..., description="User agent used for cookie generation")
 
 
+class HtmlResponse(BaseModel):
+    """Response model for HTML endpoint."""
+    html: str = Field(..., description="HTML content of the page")
+    cookies: Dict[str, str] = Field(..., description="Generated cookies")
+    user_agent: str = Field(..., description="User agent used for cookie generation")
+    url: str = Field(..., description="Final URL after redirects")
+    status_code: int = Field(..., description="HTTP status code")
+    content_length: int = Field(..., description="Length of HTML content")
+
+
 class MirrorRequestHeaders(BaseModel):
     """Headers model for mirror requests."""
     x_hostname: str = Field(..., alias="x-hostname", description="Target hostname")

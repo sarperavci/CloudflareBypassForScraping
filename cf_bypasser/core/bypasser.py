@@ -197,6 +197,34 @@ class CamoufoxBypasser:
             self.log_message(f"Error getting cookies and user agent: {e}")
             return None
 
+    async def get_html_content_and_cookies(self, url: str) -> Dict[str, Any]:
+        """Get HTML content, cookies, and user agent after successful bypass."""
+        try:
+            cookies = await self.context.cookies()
+            cookie_dict = {}
+            for cookie in cookies:
+                cookie_dict[cookie['name']] = cookie['value']
+            
+            # Get user agent from the page
+            user_agent = await self.page.evaluate("navigator.userAgent")
+            
+            # Get HTML content
+            html_content = await self.page.content()
+            
+            # Get final URL (in case of redirects)
+            final_url = self.page.url
+            
+            return {
+                "cookies": cookie_dict,
+                "user_agent": user_agent,
+                "html": html_content,
+                "url": final_url,
+                "status_code": 200  # Assuming success if we got here
+            }
+        except Exception as e:
+            self.log_message(f"Error getting HTML content and cookies: {e}")
+            return None
+
     async def get_or_generate_cookies(self, url: str, proxy: Optional[str] = None) -> Optional[Dict[str, Any]]:
         """Get cached cookies or generate new ones."""
         try:
@@ -227,6 +255,37 @@ class CamoufoxBypasser:
             
         except Exception as e:
             self.log_message(f"Error in get_or_generate_cookies: {e}")
+            return None
+        finally:
+            await self.cleanup()
+
+    async def get_or_generate_html(self, url: str, proxy: Optional[str] = None) -> Optional[Dict[str, Any]]:
+        """Get HTML content along with cookies (cached or fresh)."""
+        try:
+            hostname = urlparse(url).netloc
+            cache_key = md5_hash(hostname + proxy if proxy else "")            
+            
+            # Try to get cached cookies first
+            cached = self.cookie_cache.get(cache_key)
+            
+            # For HTML endpoint, we need to setup browser and get fresh content
+            # even if we have cached cookies, as HTML content may change
+            self.log_message(f"Getting HTML content for {url}...")
+            
+            # Setup browser and solve challenge
+            await self.setup_browser(proxy)
+            
+            if await self.solve_cloudflare_challenge(url):
+                data = await self.get_html_content_and_cookies(url)
+                if data and data["cookies"]:
+                    # Cache the cookies for future use
+                    self.cookie_cache.set(cache_key, data["cookies"], data["user_agent"])
+                    return data
+            
+            return None
+            
+        except Exception as e:
+            self.log_message(f"Error in get_or_generate_html: {e}")
             return None
         finally:
             await self.cleanup()

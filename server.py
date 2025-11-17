@@ -17,21 +17,11 @@ def main():
     
     args = parser.parse_args()
     
-    # Update logging level
     logging.getLogger().setLevel(getattr(logging, args.log_level.upper()))
     
     logger = logging.getLogger(__name__)
-    logger.info(f"Starting server on {args.host}:{args.port}")
-    logger.info("Features enabled:")
-    logger.info("  - Cookie caching system")
-    logger.info("  - Request mirroring with x-hostname/x-proxy headers") 
-    logger.info("  - Direct proxy configuration")
-    logger.info("  - Firefox-only impersonation (no Chrome sec-ch-ua headers)")
-    logger.info("  - 403 response cache invalidation and retry")
-    logger.info("  - Backward compatible /cookies endpoint")
-    logger.info("  - Catch-all mirroring (excludes: health, cookies, cache/*)")
-    
-    # Create the app
+    logger.info(f"Starting server on {args.host}:{args.port}")    
+
     app = create_app()
     
     uvicorn.run(

@@ -11,7 +11,7 @@ from fastapi.responses import JSONResponse
 from cf_bypasser.core.bypasser import CamoufoxBypasser
 from cf_bypasser.core.mirror import RequestMirror
 from cf_bypasser.server.models import (
-    CookieRequest, CookieResponse, MirrorRequestHeaders,
+    CookieRequest, CookieResponse, HtmlResponse, MirrorRequestHeaders,
     MirrorResponse, CacheStatsResponse, CacheClearResponse, ErrorResponse,
     MirrorRequestInfo, CookieGenerationInfo
 )
@@ -130,6 +130,65 @@ def setup_routes(app: FastAPI):
             logger.error(f"Error getting cookies for {url}: {e}")
             raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
+    @app.get("/html", response_model=HtmlResponse, responses={400: {"model": ErrorResponse}, 500: {"model": ErrorResponse}})
+    async def get_html(
+        url: str = Query(..., description="Target URL to get HTML content for"),
+        retries: int = Query(5, ge=1, le=10, description="Number of retry attempts"),
+        proxy: Optional[str] = Query(None, description="Proxy URL (optional)")
+    ):
+        """
+        Get HTML content and Cloudflare clearance cookies for a URL.
+        Returns the full HTML content along with cookies and user agent.
+        """
+        # Validate URL
+        if not is_safe_url(url):
+            raise HTTPException(
+                status_code=400, 
+                detail="Invalid or unsafe URL - localhost and private IPs are not allowed"
+            )
+        
+        # Validate proxy format if provided
+        if proxy and not proxy.startswith(('http://', 'https://', 'socks4://', 'socks5://')):
+            raise HTTPException(
+                status_code=400,
+                detail="Proxy must start with http://, https://, socks4://, or socks5://"
+            )
+        
+        try:
+            start_time = time.time()
+            logger.info(f"Getting HTML content for {url} (retries: {retries}, proxy: {'yes' if proxy else 'no'})")
+            
+            # Use the global bypasser or create a new one
+            bypasser = global_bypasser or CamoufoxBypasser(max_retries=retries, log=True)
+            
+            # Get HTML content using the new method
+            data = await bypasser.get_or_generate_html(url, proxy)
+            
+            if not data:
+                raise HTTPException(status_code=500, detail="Failed to bypass Cloudflare protection")
+            
+            generation_time = int((time.time() - start_time) * 1000)
+            cf_cookies = [name for name in data["cookies"].keys() if name.startswith(('cf_', '__cf'))]
+            content_length = len(data["html"])
+            
+            logger.info(f"Successfully generated HTML content ({content_length} chars) and {len(data['cookies'])} cookies in {generation_time}ms")
+            logger.info(f"Cloudflare cookies: {cf_cookies}")
+            
+            return HtmlResponse(
+                html=data["html"],
+                cookies=data["cookies"],
+                user_agent=data["user_agent"],
+                url=data["url"],
+                status_code=data["status_code"],
+                content_length=content_length
+            )
+            
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"Error getting HTML content for {url}: {e}")
+            raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
     @app.api_route("/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"])
     async def mirror_request(request: Request, path: str = ""):
         """
@@ -146,7 +205,7 @@ def setup_routes(app: FastAPI):
         """
         
         # Skip mirroring for specific endpoints
-        if path in ["cookies"] or path.startswith("cache"):
+        if path in ["cookies", "html"] or path.startswith("cache"):
             raise HTTPException(status_code=404, detail="Not found")
         
         try:
