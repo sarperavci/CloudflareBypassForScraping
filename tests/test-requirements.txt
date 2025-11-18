@@ -1,0 +1,18 @@
+# Test requirements for CloudflareBypassForScraping
+# Install with: pip install -r test-requirements.txt
+
+# Core testing frameworks
+pytest>=7.4.0
+pytest-asyncio>=0.21.0
+pytest-timeout>=2.1.0
+pytest-xdist>=3.3.0  # For parallel test execution
+pytest-cov>=4.1.0  # For coverage reports
+
+# HTTP client for testing
+httpx>=0.24.0
+
+# FastAPI testing
+fastapi[all]>=0.100.0
+
+# Async support
+anyio>=3.7.0

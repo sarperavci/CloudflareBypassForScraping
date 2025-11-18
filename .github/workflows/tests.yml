@@ -1,0 +1,174 @@
+name: CloudflareBypassForScraping Tests
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  workflow_dispatch:  # Allow manual triggers
+  schedule:
+    # Run tests daily at 2 AM UTC
+    - cron: '0 2 * * *'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    
+    strategy:
+      matrix:
+        python-version: ['3.10', '3.11']
+      fail-fast: false
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+        cache: 'pip'
+    
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          libnss3 \
+          libnspr4 \
+          libatk1.0-0 \
+          libatk-bridge2.0-0 \
+          libcups2 \
+          libdrm2 \
+          libxkbcommon0 \
+          libxcomposite1 \
+          libxdamage1 \
+          libxfixes3 \
+          libxrandr2 \
+          libgbm1 \
+          libasound2 \
+          libpango-1.0-0 \
+          libcairo2
+    
+    - name: Install Python dependencies
+      run: |
+        python -m pip install --upgrade pip setuptools wheel
+        pip install -r requirements.txt
+        pip install -r server_requirements.txt
+        pip install -r tests/test-requirements.txt
+    
+    - name: Show installed packages
+      run: |
+        pip list
+    
+    - name: Run Cookie Generation Tests
+      run: |
+        python -m pytest -c tests/pytest.ini tests/test_cookies.py -v --tb=short --timeout=120
+      timeout-minutes: 30
+    
+    - name: Run HTML Retrieval Tests
+      run: |
+        python -m pytest -c tests/pytest.ini tests/test_html.py -v --tb=short --timeout=120
+      timeout-minutes: 30
+    
+    - name: Start Server for Integration Tests
+      run: |
+        python server.py &
+        SERVER_PID=$!
+        echo "SERVER_PID=$SERVER_PID" >> $GITHUB_ENV
+        sleep 10
+        curl -f http://localhost:8000/cache/stats || exit 1
+    
+    - name: Run Server Endpoint Tests
+      run: |
+        python -m pytest -c tests/pytest.ini tests/test_server.py -v --tb=short --timeout=120
+      timeout-minutes: 20
+    
+    - name: Run Mirror Request Tests
+      run: |
+        python -m pytest -c tests/pytest.ini tests/test_mirror.py -v --tb=short --timeout=120
+      timeout-minutes: 30
+    
+    - name: Stop Server
+      if: always()
+      run: |
+        if [ ! -z "$SERVER_PID" ]; then
+          kill $SERVER_PID || true
+        fi
+        pkill -f "python.*server.py" || true
+    
+    - name: Generate Test Report
+      if: always()
+      run: |
+        echo "## Test Summary" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "Tests completed for Python ${{ matrix.python-version }}" >> $GITHUB_STEP_SUMMARY
+    
+    - name: Show logs on failure
+      if: failure()
+      run: |
+        echo "=== Recent logs ==="
+        tail -n 100 ~/.local/share/camoufox/logs/* || true
+        echo "=== System info ==="
+        uname -a
+        python --version
+        pip list
+
+  test-quick:
+    name: Quick Tests (Single Request)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+        cache: 'pip'
+    
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libnss3 libnspr4 libatk1.0-0 libatk-bridge2.0-0 libcups2 libdrm2 libxkbcommon0 libxcomposite1 libxdamage1 libxfixes3 libxrandr2 libgbm1 libasound2
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install -r server_requirements.txt
+        pip install -r tests/test-requirements.txt
+    
+    - name: Run Quick Tests
+      run: |
+        python -m pytest -c tests/pytest.ini tests/test_cookies.py::test_single_cookie_generation -v
+        python -m pytest -c tests/pytest.ini tests/test_html.py::test_single_html_retrieval -v
+      timeout-minutes: 15
+
+  test-parallel:
+    name: Parallel Tests (Concurrency)
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+        cache: 'pip'
+    
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libnss3 libnspr4 libatk1.0-0 libatk-bridge2.0-0 libcups2 libdrm2 libxkbcommon0 libxcomposite1 libxdamage1 libxfixes3 libxrandr2 libgbm1 libasound2
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install -r server_requirements.txt
+        pip install -r tests/test-requirements.txt
+    
+    - name: Test Parallel Cookie Generation
+      run: |
+        python -m pytest -c tests/pytest.ini tests/test_cookies.py -k "parallel" -v --timeout=120
+      timeout-minutes: 35
