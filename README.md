@@ -118,6 +118,20 @@ $ curl "http://localhost:8000/cookies?url=https://nopecha.com/demo/cloudflare"
 }
 ```
 
+### HTML Content Extraction
+
+The `/html` endpoint returns the full HTML content of a page after bypassing Cloudflare protection. The HTML is returned directly (not as JSON).
+
+```bash
+$ curl "http://localhost:8000/html?url=https://nopecha.com/demo/cloudflare"
+```
+
+This returns the raw HTML content with additional headers containing bypass information:
+- `x-cf-bypasser-cookies`: Number of cookies generated
+- `x-cf-bypasser-user-agent`: User agent used for bypass
+- `x-cf-bypasser-final-url`: Final URL after redirects
+- `x-processing-time-ms`: Time taken to process the request
+
 
 ## Build from Source  
 ```bash
