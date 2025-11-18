@@ -34,21 +34,28 @@ jobs:
       run: |
         sudo apt-get update
         sudo apt-get install -y \
-          libnss3 \
-          libnspr4 \
+          xvfb \
+          libgtk-3-0 \
+          libgtk-3-dev \
+          libxss1 \
+          libxtst6 \
+          libxrandr2 \
+          libasound2t64 \
+          libpangocairo-1.0-0 \
           libatk1.0-0 \
-          libatk-bridge2.0-0 \
-          libcups2 \
-          libdrm2 \
-          libxkbcommon0 \
+          libcairo-gobject2 \
+          libgdk-pixbuf-2.0-0 \
+          libdbus-glib-1-2 \
+          libxt6 \
           libxcomposite1 \
           libxdamage1 \
+          libxext6 \
           libxfixes3 \
-          libxrandr2 \
-          libgbm1 \
-          libasound2 \
-          libpango-1.0-0 \
-          libcairo2
+          libxrender1 \
+          libxi6 \
+          fonts-liberation \
+          libnss3 \
+          lsb-release
     
     - name: Install Python dependencies
       run: |
@@ -132,7 +139,29 @@ jobs:
     - name: Install dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y libnss3 libnspr4 libatk1.0-0 libatk-bridge2.0-0 libcups2 libdrm2 libxkbcommon0 libxcomposite1 libxdamage1 libxfixes3 libxrandr2 libgbm1 libasound2
+        sudo apt-get install -y \
+          xvfb \
+          libgtk-3-0 \
+          libgtk-3-dev \
+          libxss1 \
+          libxtst6 \
+          libxrandr2 \
+          libasound2t64 \
+          libpangocairo-1.0-0 \
+          libatk1.0-0 \
+          libcairo-gobject2 \
+          libgdk-pixbuf-2.0-0 \
+          libdbus-glib-1-2 \
+          libxt6 \
+          libxcomposite1 \
+          libxdamage1 \
+          libxext6 \
+          libxfixes3 \
+          libxrender1 \
+          libxi6 \
+          fonts-liberation \
+          libnss3 \
+          lsb-release
         python -m pip install --upgrade pip
         pip install -r requirements.txt
         pip install -r server_requirements.txt
@@ -162,7 +191,29 @@ jobs:
     - name: Install dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y libnss3 libnspr4 libatk1.0-0 libatk-bridge2.0-0 libcups2 libdrm2 libxkbcommon0 libxcomposite1 libxdamage1 libxfixes3 libxrandr2 libgbm1 libasound2
+        sudo apt-get install -y \
+          xvfb \
+          libgtk-3-0 \
+          libgtk-3-dev \
+          libxss1 \
+          libxtst6 \
+          libxrandr2 \
+          libasound2t64 \
+          libpangocairo-1.0-0 \
+          libatk1.0-0 \
+          libcairo-gobject2 \
+          libgdk-pixbuf-2.0-0 \
+          libdbus-glib-1-2 \
+          libxt6 \
+          libxcomposite1 \
+          libxdamage1 \
+          libxext6 \
+          libxfixes3 \
+          libxrender1 \
+          libxi6 \
+          fonts-liberation \
+          libnss3 \
+          lsb-release
         python -m pip install --upgrade pip
         pip install -r requirements.txt
         pip install -r server_requirements.txt
