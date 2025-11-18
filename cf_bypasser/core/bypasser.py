@@ -52,18 +52,37 @@ class CamoufoxBypasser:
             self.log_message(f"Error parsing proxy {proxy}: {e}")
             return None
 
-    async def setup_browser(self, proxy: Optional[str] = None, lang: str = "en") -> tuple:
+    async def setup_browser(self, proxy: Optional[str] = None, lang: str = "en", user_agent: Optional[str] = None) -> tuple:
         """Setup Camoufox browser with random OS and configuration. Returns (browser, context, page)."""
         # Clear expired cache entries
         self.cookie_cache.clear_expired()
         
-        # Randomly choose an OS
-        selected_os = random.choice(OPERATING_SYSTEMS)
+        # Determine OS from user_agent if provided, otherwise random
+        selected_os = None
+        if user_agent:
+            ua_lower = user_agent.lower()
+            if "windows" in ua_lower:
+                selected_os = "windows"
+            elif "macintosh" in ua_lower or "mac os" in ua_lower:
+                selected_os = "macos"
+            elif "linux" in ua_lower or "x11" in ua_lower:
+                selected_os = "linux"
+        
+        if not selected_os:
+            selected_os = random.choice(OPERATING_SYSTEMS)
+            
         self.log_message(f"Using OS: {selected_os}")
         
         # Generate random config for the selected OS
         random_config = BrowserConfig.generate_random_config(selected_os, lang=lang)
-        self.log_message(f"Generated config with UA: {random_config.get('navigator.userAgent', 'N/A')}")
+        
+        # Override user agent if provided
+        if user_agent:
+            random_config['navigator.userAgent'] = user_agent
+            self.log_message(f"Using provided User-Agent: {user_agent}")
+        else:
+            self.log_message(f"Generated config with UA: {random_config.get('navigator.userAgent', 'N/A')}")
+            
         self.log_message(f"Screen resolution: {random_config['window.outerWidth']}x{random_config['window.outerHeight']}")
 
         # Setup proxy configuration if provided
@@ -261,7 +280,7 @@ class CamoufoxBypasser:
         finally:
             await self.cleanup_browser(browser, context, page)
 
-    async def get_or_generate_html(self, url: str, proxy: Optional[str] = None) -> Optional[Dict[str, Any]]:
+    async def get_or_generate_html(self, url: str, proxy: Optional[str] = None, bypass_cache: bool = False) -> Optional[Dict[str, Any]]:
         """Get HTML content along with cookies (cached or fresh)."""
         hostname = urlparse(url).netloc
         cache_key = md5_hash(hostname + proxy if proxy else "")
@@ -270,6 +289,16 @@ class CamoufoxBypasser:
         # even if we have cached cookies, as HTML content may change
         self.log_message(f"Getting HTML content for {url}...")
         
+        cached_cookies = None
+        cached_ua = None
+        
+        if not bypass_cache:
+            cached = self.cookie_cache.get(cache_key)
+            if cached:
+                cached_cookies = cached.cookies
+                cached_ua = cached.user_agent
+                self.log_message(f"Found cached cookies for {url}")
+
         # Create isolated browser instance
         browser = None
         context = None
@@ -277,7 +306,19 @@ class CamoufoxBypasser:
         
         try:
             # Setup browser and solve challenge
-            browser, context, page = await self.setup_browser(proxy)
+            browser, context, page = await self.setup_browser(proxy, user_agent=cached_ua)
+            
+            if cached_cookies:
+                self.log_message("Restoring cached cookies...")
+                # Convert dict to list of cookie objects
+                cookie_list = []
+                for name, value in cached_cookies.items():
+                    cookie_list.append({
+                        'name': name,
+                        'value': value,
+                        'url': url  # Use the target URL for the cookie
+                    })
+                await context.add_cookies(cookie_list)
             
             if await self.solve_cloudflare_challenge(url, page):
                 data = await self.get_html_content_and_cookies(context, page)

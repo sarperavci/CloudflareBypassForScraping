@@ -134,7 +134,8 @@ def setup_routes(app: FastAPI):
     async def get_html(
         url: str = Query(..., description="Target URL to get HTML content for"),
         retries: int = Query(5, ge=1, le=10, description="Number of retry attempts"),
-        proxy: Optional[str] = Query(None, description="Proxy URL (optional)")
+        proxy: Optional[str] = Query(None, description="Proxy URL (optional)"),
+        bypassCookieCache: bool = Query(False, description="Force fresh cookie generation")
     ):
         """
         Get HTML content from a URL after bypassing Cloudflare protection.
@@ -162,7 +163,7 @@ def setup_routes(app: FastAPI):
             bypasser = global_bypasser or CamoufoxBypasser(max_retries=retries, log=True)
             
             # Get HTML content using the new method
-            data = await bypasser.get_or_generate_html(url, proxy)
+            data = await bypasser.get_or_generate_html(url, proxy, bypass_cache=bypassCookieCache)
             
             if not data:
                 raise HTTPException(status_code=500, detail="Failed to bypass Cloudflare protection")
