@@ -189,8 +189,63 @@ def setup_routes(app: FastAPI):
         except HTTPException:
             raise
         except Exception as e:
-            logger.error(f"Error getting HTML content for {url}: {e}")
+            logger.info(f"Error getting HTML content for {url}: {e}")
             raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+    @app.post("/cache/clear", response_model=CacheClearResponse, responses={500: {"model": ErrorResponse}})
+    async def clear_cache():
+        """
+        Clear the cookie cache and cleanup active sessions.
+        This will force fresh cookie generation for all subsequent requests.
+        """
+        try:
+            cleared_entries = 0
+            
+            if global_bypasser:
+                cache = global_bypasser.cookie_cache.cache
+                cleared_entries = len(cache)
+                global_bypasser.cookie_cache.clear_all()
+                logger.info(f"Cleared {cleared_entries} cache entries")
+            
+            if global_mirror:
+                await global_mirror.cleanup()
+                logger.info("Cleaned up mirror sessions")
+            
+            return CacheClearResponse(
+                status="success",
+                message=f"Cache cleared successfully - {cleared_entries} entries removed"
+            )
+        except Exception as e:
+            logger.error(f"Error clearing cache: {e}")
+            raise HTTPException(status_code=500, detail=f"Failed to clear cache: {str(e)}")
+
+    @app.get("/cache/stats", response_model=CacheStatsResponse, responses={500: {"model": ErrorResponse}})
+    async def cache_stats():
+        """
+        Get detailed cache statistics including active entries and hostnames.
+        """
+        try:
+            if not global_bypasser:
+                return CacheStatsResponse(
+                    cached_entries=0,
+                    total_hostnames=0,
+                    hostnames=[]
+                )
+            
+            cache = global_bypasser.cookie_cache.cache
+            active_entries = sum(1 for cached in cache.values() if not cached.is_expired())
+            expired_entries = len(cache) - active_entries
+            
+            logger.info(f"Cache stats: {active_entries} active, {expired_entries} expired, {len(cache)} total")
+            
+            return CacheStatsResponse(
+                cached_entries=active_entries,
+                total_hostnames=len(cache),
+                hostnames=list(cache.keys())
+            )
+        except Exception as e:
+            logger.error(f"Error getting cache stats: {e}")
+            raise HTTPException(status_code=500, detail=f"Failed to get cache stats: {str(e)}")
 
     @app.api_route("/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"])
     async def mirror_request(request: Request, path: str = ""):
@@ -208,7 +263,7 @@ def setup_routes(app: FastAPI):
         """
         
         # Skip mirroring for specific endpoints
-        if path in ["cookies", "html"] or path.startswith("cache"):
+        if path in ["cookies", "html"] or path.startswith("cache/"):
             raise HTTPException(status_code=404, detail="Not found")
         
         try:
