@@ -2,6 +2,7 @@ import asyncio
 import logging
 import os
 import random
+import time
 from typing import Optional, Dict, Any
 from urllib.parse import urlparse
 
@@ -9,7 +10,7 @@ from camoufox.async_api import AsyncCamoufox
 from playwright_captcha import CaptchaType, ClickSolver, FrameworkType
 from playwright_captcha.utils.camoufox_add_init_script.add_init_script import get_addon_path
 
-from cf_bypasser.utils.misc import md5_hash
+from cf_bypasser.utils.misc import md5_hash, get_browser_init_lock
 from cf_bypasser.cache.cookie_cache import CookieCache
 from cf_bypasser.utils.config import BrowserConfig, OPERATING_SYSTEMS
 
@@ -74,26 +75,23 @@ class CamoufoxBypasser:
             else:
                 self.log_message("Failed to parse proxy, continuing without proxy")
 
-        # Launch Camoufox with stealth settings
-        browser = await AsyncCamoufox(
-            headless=True,
-            geoip=True if proxy else False,  # Auto-detect geolocation from proxy
-            humanize=False,  # Humanize cursor movement
-            os=selected_os,  # Random OS selection
-            locale=lang if lang else "en-US",
-            
-            # Required for Camoufox add_init_script workaround
-            i_know_what_im_doing=True,
-            config={'forceScopeAccess': True, **random_config},
-            disable_coop=True,  # Allows clicking Cloudflare checkbox
-            main_world_eval=True,
-            addons=[os.path.abspath(ADDON_PATH)],
-            
-            # Performance settings
-            block_images=False,  # Keep images for realistic behavior
-            block_webrtc=True,  # Block WebRTC for privacy
-            enable_cache=False,  # Disable cache to save memory
-        ).__aenter__()
+        # Use global lock to serialize browser initialization (browserforge is not thread-safe)
+        async with get_browser_init_lock():
+            browser = await AsyncCamoufox(
+                headless=True,
+                geoip=True if proxy else False,
+                humanize=False,
+                os=selected_os,
+                locale=lang if lang else "en-US",
+                i_know_what_im_doing=True,
+                config={'forceScopeAccess': True, **random_config},
+                disable_coop=True,
+                main_world_eval=True,
+                addons=[os.path.abspath(ADDON_PATH)],
+                block_images=False,
+                block_webrtc=True,
+                enable_cache=False,
+            ).__aenter__()
 
         # Create context with proxy if provided
         context_options = {}
@@ -154,7 +152,7 @@ class CamoufoxBypasser:
             expected_selector = "#root"
             captcha_container = page
             is_solved = False                
-            async with ClickSolver(framework=FrameworkType.CAMOUFOX, page=page) as solver:
+            async with ClickSolver(framework=FrameworkType.CAMOUFOX, page=page, max_attempts=2, attempt_delay=1) as solver:
  
                 await solver.solve_captcha(
                     captcha_container=captcha_container,
