@@ -96,7 +96,7 @@ class CamoufoxBypasser:
 
         # Use global lock to serialize browser initialization (browserforge is not thread-safe)
         async with get_browser_init_lock():
-            browser = await AsyncCamoufox(
+            camoufox = AsyncCamoufox(
                 headless=True,
                 geoip=True if proxy else False,
                 humanize=False,
@@ -110,7 +110,8 @@ class CamoufoxBypasser:
                 block_images=False,
                 block_webrtc=True,
                 enable_cache=False,
-            ).__aenter__()
+            )
+            browser = await camoufox.__aenter__()
 
         # Create context with proxy if provided
         context_options = {}
@@ -120,7 +121,7 @@ class CamoufoxBypasser:
         context = await browser.new_context(**context_options)
         page = await context.new_page()
         
-        return browser, context, page
+        return camoufox, browser, context, page
 
     async def is_bypassed(self, page) -> bool:
         """Check if Cloudflare challenge has been bypassed."""
@@ -257,13 +258,14 @@ class CamoufoxBypasser:
         self.log_message(f"No cached cookies for {cache_key}, generating new ones...")
         
         # Create isolated browser instance
+        camoufox = None
         browser = None
         context = None
         page = None
         
         try:
             # Setup browser and solve challenge
-            browser, context, page = await self.setup_browser(proxy)
+            camoufox, browser, context, page = await self.setup_browser(proxy)
             
             if await self.solve_cloudflare_challenge(url, page):
                 data = await self.get_cookies_and_user_agent(context, page)
@@ -278,7 +280,7 @@ class CamoufoxBypasser:
             self.log_message(f"Error in get_or_generate_cookies: {e}")
             return None
         finally:
-            await self.cleanup_browser(browser, context, page)
+            await self.cleanup_browser(camoufox, browser, context, page)
 
     async def get_or_generate_html(self, url: str, proxy: Optional[str] = None, bypass_cache: bool = False) -> Optional[Dict[str, Any]]:
         """Get HTML content along with cookies (cached or fresh)."""
@@ -300,13 +302,14 @@ class CamoufoxBypasser:
                 self.log_message(f"Found cached cookies for {url}")
 
         # Create isolated browser instance
+        camoufox = None
         browser = None
         context = None
         page = None
         
         try:
             # Setup browser and solve challenge
-            browser, context, page = await self.setup_browser(proxy, user_agent=cached_ua)
+            camoufox, browser, context, page = await self.setup_browser(proxy, user_agent=cached_ua)
             
             if cached_cookies:
                 self.log_message("Restoring cached cookies...")
@@ -333,9 +336,9 @@ class CamoufoxBypasser:
             self.log_message(f"Error in get_or_generate_html: {e}")
             return None
         finally:
-            await self.cleanup_browser(browser, context, page)
+            await self.cleanup_browser(camoufox, browser, context, page)
 
-    async def cleanup_browser(self, browser, context, page) -> None:
+    async def cleanup_browser(self, camoufox, browser, context, page) -> None:
         """Clean up browser resources."""
         try:
             # Close page first
@@ -352,12 +355,12 @@ class CamoufoxBypasser:
                 except Exception as e:
                     self.log_message(f"Error closing context: {e}")
                 
-            # Close browser last
-            if browser:
+            # Close the AsyncCamoufox wrapper
+            if camoufox:
                 try:
-                    await browser.__aexit__(None, None, None)
+                    await camoufox.__aexit__(None, None, None)
                 except Exception as e:
-                    self.log_message(f"Error closing browser: {e}")
+                    self.log_message(f"Error closing camoufox: {e}")
                     
         except Exception as e:
             self.log_message(f"Error during cleanup: {e}")
