@@ -64,6 +64,22 @@ If you're looking for powerful and scalable browser automation and real-time dat
 ThorData is SOC2, GDPR, and CCPA compliant, trusted by 4,000+ enterprises for secure web data extraction.  
 👉 Learn more: [ThorData Web Scraper](https://www.thordata.com/products/web-scraper/?ls=github&lk=scraping) | [Get Started](https://www.thordata.com/?ls=github&lk=scraping)  
 
+---
+
+### IPOasis
+
+<a href="https://www.ipoasis.com/dashboard/register?utm_source=GithubAvci"><img src="https://github.com/user-attachments/assets/9e8ab165-1e53-4757-a403-ff922166c36b" /></a>
+
+IPOasis is a trusted provider of high-quality proxy services, with over 90 million nodes distributed globally across more than 200 countries.
+
+Our proxies are fresh, clean, fast, and have a high success rate.
+ 
+Supporting both HTTP and SOCKS5 protocols, with session control and unlimited concurrency.
+
+Our products are ideal for a variety of use cases including data monitoring, survey research, web scraping, SEO/ASO optimization, app simulation, gaming, business measurement, marketing, and more.
+
+May IPOasis, this unique online 'oasis,' empower every user seeking high-quality residential proxies. 🩵
+
 
 
 # 🚀 Quick Start
