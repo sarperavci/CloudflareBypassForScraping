@@ -3,8 +3,16 @@ name: CloudflareBypassForScraping Tests
 on:
   push:
     branches: [ main, develop ]
+    paths-ignore:
+      - 'README.md'
+      - '*.md'
+      - 'LICENSE'
   pull_request:
     branches: [ main, develop ]
+    paths-ignore:
+      - 'README.md'
+      - '*.md'
+      - 'LICENSE'
   workflow_dispatch:  # Allow manual triggers
   schedule:
     # Run tests daily at 2 AM UTC

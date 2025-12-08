@@ -3,6 +3,10 @@ on:
   push:
     branches:
       - main
+    paths-ignore:
+      - 'README.md'
+      - '*.md'
+      - 'LICENSE'
 
 jobs:
   docker_publish:
