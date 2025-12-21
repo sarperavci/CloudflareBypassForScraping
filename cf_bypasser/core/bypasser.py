@@ -245,7 +245,7 @@ class CamoufoxBypasser:
     async def get_or_generate_cookies(self, url: str, proxy: Optional[str] = None) -> Optional[Dict[str, Any]]:
         """Get cached cookies or generate new ones."""
         hostname = urlparse(url).netloc
-        cache_key = md5_hash(hostname + proxy if proxy else "")
+        cache_key = md5_hash(hostname + (proxy or ""))
         
         # Try to get cached cookies first
         cached = self.cookie_cache.get(cache_key)
@@ -285,7 +285,7 @@ class CamoufoxBypasser:
     async def get_or_generate_html(self, url: str, proxy: Optional[str] = None, bypass_cache: bool = False) -> Optional[Dict[str, Any]]:
         """Get HTML content along with cookies (cached or fresh)."""
         hostname = urlparse(url).netloc
-        cache_key = md5_hash(hostname + proxy if proxy else "")
+        cache_key = md5_hash(hostname + (proxy or ""))
         
         # For HTML endpoint, we need to setup browser and get fresh content
         # even if we have cached cookies, as HTML content may change
