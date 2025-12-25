@@ -185,14 +185,22 @@ class RequestMirror:
                     await asyncio.sleep(.5)
                     continue
                 
-                # remove the Content-Encoding and Content-Length headers
+                # Process response headers: handle Content-Encoding/Length, keep Set-Cookie and others
                 final_headers = {}
                 for k, v in response_headers.items():
                     k_lower = k.lower()
                     if k_lower == "content-encoding":
+                        # Remove gzip/deflate encoding since we're returning raw content
                         final_headers[k] = "identity"
                     elif k_lower == "content-length":
+                        # Recalculate content length
                         final_headers[k] = str(len(response.content))
+                    elif k_lower == "set-cookie":
+                        # Remove Secure attribute since we are running on HTTP
+                        final_headers[k] = v.replace("; Secure", "").replace("; secure", "")
+                    else:
+                        # Keep all other headers including Set-Cookie
+                        final_headers[k] = v
                 
                 logging.info(f"Request to {hostname} completed with status {status_code}")
                 return status_code, final_headers, response_content
