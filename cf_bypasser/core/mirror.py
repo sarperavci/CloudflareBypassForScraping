@@ -8,6 +8,7 @@ from curl_cffi.requests import AsyncSession
 
 from cf_bypasser.core.bypasser import CamoufoxBypasser
 from cf_bypasser.utils.config import BrowserConfig
+from cf_bypasser.utils.misc import md5_hash
 
 
 class RequestMirror:
@@ -125,7 +126,8 @@ class RequestMirror:
                 # If bypass_cache is True, invalidate existing cache first
                 if bypass_cache:
                     parsed_hostname = urlparse(target_url).netloc
-                    self.bypasser.cookie_cache.invalidate(parsed_hostname)
+                    cache_key = md5_hash(parsed_hostname + (proxy or ""))
+                    self.bypasser.cookie_cache.invalidate(cache_key)
                 
                 cf_data = await self.bypasser.get_or_generate_cookies(target_url, proxy)
                 
@@ -176,7 +178,8 @@ class RequestMirror:
                     
                     # Invalidate the cached cookies for this hostname
                     parsed_hostname = urlparse(target_url).netloc
-                    self.bypasser.cookie_cache.invalidate(parsed_hostname)
+                    cache_key = md5_hash(parsed_hostname + (proxy or ""))
+                    self.bypasser.cookie_cache.invalidate(cache_key)
                     
                     # Wait a bit before retrying
                     await asyncio.sleep(.5)
