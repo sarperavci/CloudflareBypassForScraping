@@ -141,9 +141,20 @@ class RequestMirror:
                 clean_headers['user-agent'] = cf_data['user_agent']
                 clean_headers.pop("host", None)
                 
-                # Merge cookies
-                incoming_cookies = clean_headers.get('Cookie', '')
+                # Merge cookies - find Cookie header case-insensitively
+                incoming_cookies = ''
+                cookie_header_key = None
+                for key in clean_headers:
+                    if key.lower() == 'cookie':
+                        incoming_cookies = clean_headers[key]
+                        cookie_header_key = key
+                        break
+
                 merged_cookies = self.merge_cookies(incoming_cookies, cf_data['cookies'])
+
+                # Remove original cookie header (if exists) and set with standard casing
+                if cookie_header_key:
+                    del clean_headers[cookie_header_key]
                 clean_headers['Cookie'] = merged_cookies
                 
                 # Add Firefox-like headers for better impersonation
@@ -193,6 +204,9 @@ class RequestMirror:
                         final_headers[k] = "identity"
                     elif k_lower == "content-length":
                         final_headers[k] = str(len(response.content))
+                    else:
+                        # Keep all other headers as-is
+                        final_headers[k] = v
                 
                 logging.info(f"Request to {hostname} completed with status {status_code}")
                 return status_code, final_headers, response_content
