@@ -124,14 +124,7 @@ class BrowserConfig:
     def _configure_linux(config: Dict, firefox_version: int) -> Dict:
         """Configure Linux-specific browser settings."""
         linux_distros = [
-            "X11; Linux x86_64",
             "X11; Ubuntu; Linux x86_64", 
-            "X11; Fedora; Linux x86_64",
-            "X11; Debian; Linux x86_64",
-            "X11; CentOS; Linux x86_64",
-            "X11; Arch Linux; Linux x86_64",
-            "X11; openSUSE; Linux x86_64",
-            "X11; Manjaro; Linux x86_64",
         ]
         linux_distro = random.choice(linux_distros)
         
