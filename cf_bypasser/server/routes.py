@@ -78,14 +78,31 @@ def setup_routes(app: FastAPI):
     
     @app.get("/cookies", response_model=CookieResponse, responses={400: {"model": ErrorResponse}, 500: {"model": ErrorResponse}})
     async def get_cookies(
-        url: str = Query(..., description="Target URL to get cookies for"),
+        request: Request,
+        url: Optional[str] = Query(None, description="Target URL to get cookies for"),
         retries: int = Query(5, ge=1, le=10, description="Number of retry attempts"),
         proxy: Optional[str] = Query(None, description="Proxy URL (optional)")
     ):
         """
         Legacy endpoint for backward compatibility.
         Get Cloudflare clearance cookies for a URL.
+        
+        If x-hostname header is present, this is treated as a mirror request
+        and forwarded to the target site's /cookies path.
         """
+        # Check if this is a mirror request (has x-hostname header)
+        headers = dict(request.headers)
+        if any(key.lower() == 'x-hostname' for key in headers.keys()):
+            # This is a mirror request - forward to the catch-all handler
+            return await mirror_request(request, "cookies")
+        
+        # For internal API, url is required
+        if not url:
+            raise HTTPException(
+                status_code=400,
+                detail="url parameter is required when x-hostname header is not present"
+            )
+        
         # Validate URL
         if not is_safe_url(url):
             raise HTTPException(
@@ -132,7 +149,8 @@ def setup_routes(app: FastAPI):
 
     @app.get("/html", responses={400: {"model": ErrorResponse}, 500: {"model": ErrorResponse}})
     async def get_html(
-        url: str = Query(..., description="Target URL to get HTML content for"),
+        request: Request,
+        url: Optional[str] = Query(None, description="Target URL to get HTML content for"),
         retries: int = Query(5, ge=1, le=10, description="Number of retry attempts"),
         proxy: Optional[str] = Query(None, description="Proxy URL (optional)"),
         bypassCookieCache: bool = Query(False, description="Force fresh cookie generation")
@@ -140,7 +158,20 @@ def setup_routes(app: FastAPI):
         """
         Get HTML content from a URL after bypassing Cloudflare protection.
         Returns the raw HTML content directly.
+        
         """
+        # Check if this is a mirror request (has x-hostname header)
+        headers = dict(request.headers)
+        if any(key.lower() == 'x-hostname' for key in headers.keys()):
+            return await mirror_request(request, "html")
+        
+        # For internal API, url is required
+        if not url:
+            raise HTTPException(
+                status_code=400,
+                detail="url parameter is required when x-hostname header is not present"
+            )
+        
         # Validate URL
         if not is_safe_url(url):
             raise HTTPException(
@@ -251,7 +282,7 @@ def setup_routes(app: FastAPI):
     @app.api_route("/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"])
     async def mirror_request(request: Request, path: str = ""):
         """
-        Dynamic request mirroring endpoint - captures all paths except health, cookies, and cache.
+        Dynamic request mirroring endpoint
         
         Required Headers:
         - x-hostname: Target hostname (e.g., "example.com")
@@ -263,8 +294,8 @@ def setup_routes(app: FastAPI):
         Returns the mirrored response from the target with Cloudflare protection bypassed.
         """
         
-        # Skip mirroring for specific endpoints
-        if path in ["cookies", "html"] or path.startswith("cache/"):
+        # Skip mirroring for cache management endpoints only
+        if path.startswith("cache/"):
             raise HTTPException(status_code=404, detail="Not found")
         
         try:
