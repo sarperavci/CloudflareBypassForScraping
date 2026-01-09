@@ -154,10 +154,15 @@ class CamoufoxBypasser:
             # Navigate to the target URL
             self.log_message(f"Navigating to {url}")
             await page.goto(url, wait_until="domcontentloaded", timeout=10000)
+            html_content = await page.content()
+            
+            if "cloudflare" not in html_content:
+                self.log_message("No Cloudflare protection detected on the page")
+                return True
             
             # Wait for page to load
-            await asyncio.sleep(8)
-
+            await asyncio.sleep(5)
+    
             # Check if we need to solve a challenge
             if await self.is_bypassed(page):
                 self.log_message("No Cloudflare challenge detected or already bypassed")
@@ -185,7 +190,7 @@ class CamoufoxBypasser:
             if is_solved:
                 self.log_message("✅ Cloudflare challenge solved successfully!")
                 # Wait a bit more to ensure cookies are set
-                await asyncio.sleep(3)
+                await asyncio.sleep(1)
                 return True
             else:
                 self.log_message("❌ Failed to solve Cloudflare challenge")
@@ -269,7 +274,7 @@ class CamoufoxBypasser:
             
             if await self.solve_cloudflare_challenge(url, page):
                 data = await self.get_cookies_and_user_agent(context, page)
-                if data and data["cookies"]:
+                if data:
                     # Cache the new cookies
                     self.cookie_cache.set(cache_key, data["cookies"], data["user_agent"])
                     return data
@@ -325,7 +330,7 @@ class CamoufoxBypasser:
             
             if await self.solve_cloudflare_challenge(url, page):
                 data = await self.get_html_content_and_cookies(context, page)
-                if data and data["cookies"]:
+                if data:
                     # Cache the cookies for future use
                     self.cookie_cache.set(cache_key, data["cookies"], data["user_agent"])
                     return data
