@@ -153,16 +153,14 @@ class CamoufoxBypasser:
         try:
             # Navigate to the target URL
             self.log_message(f"Navigating to {url}")
-            await page.goto(url, wait_until="domcontentloaded", timeout=10000)
+            await page.goto(url, wait_until="networkidle", timeout=10000)
+            await asyncio.sleep(5)
             html_content = await page.content()
             
             if "cloudflare" not in html_content:
-                self.log_message("No Cloudflare protection detected on the page")
+                self.log_message("No Cloudflare protection detected on the page -- either not protected or already bypassed")
                 return True
             
-            # Wait for page to load
-            await asyncio.sleep(5)
-    
             # Check if we need to solve a challenge
             if await self.is_bypassed(page):
                 self.log_message("No Cloudflare challenge detected or already bypassed")
