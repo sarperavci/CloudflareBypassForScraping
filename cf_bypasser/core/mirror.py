@@ -57,8 +57,8 @@ class RequestMirror:
                         name, value = cookie.split('=', 1)
                         incoming_dict[name.strip()] = value.strip()
             
-            # Merge with CF cookies (CF cookies take priority)
-            merged_cookies = {**incoming_dict, **cf_cookies}
+            # Merge with CF cookies (user cookies take precedence)
+            merged_cookies = {**cf_cookies, **incoming_dict}
             
             # Convert back to cookie string
             cookie_pairs = [f"{name}={value}" for name, value in merged_cookies.items()]
