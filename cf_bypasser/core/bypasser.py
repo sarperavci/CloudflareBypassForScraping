@@ -177,47 +177,43 @@ class CamoufoxBypasser:
                 self.log_message("No Cloudflare challenge detected or already bypassed")
                 return True
 
-            self.log_message("Cloudflare challenge detected. Waiting for auto-resolve...")
-
-            # Most Cloudflare interstitial challenges now auto-resolve without
-            # user interaction. Poll for the challenge to clear before trying
-            # the click solver.
-            for i in range(self.max_retries):
-                await asyncio.sleep(5)
-                try:
-                    if await self.is_bypassed(page):
-                        self.log_message("Cloudflare challenge auto-resolved")
-                        await asyncio.sleep(1)
-                        return True
-                except Exception:
-                    # Page may be navigating — that's a good sign
-                    pass
-
-            # If auto-resolve failed, try the click solver as a fallback
-            # (for turnstile or interactive challenges)
-            self.log_message("Auto-resolve timed out. Attempting click solver...")
+            self.log_message("Cloudflare challenge detected. Attempting to solve...")
             challenge_type = await self.determine_challenge_type(page)
             if not challenge_type:
                 self.log_message("Could not determine challenge type")
                 return False
 
-            expected_selector = "#root"
+            # Use ClickSolver to find and click the Cloudflare checkbox.
+            # Don't pass expected_content_selector — it causes false negatives
+            # when the target page doesn't have a matching element.
             captcha_container = page
-            is_solved = False
-            async with ClickSolver(framework=FrameworkType.CAMOUFOX, page=page, max_attempts=3, attempt_delay=2) as solver:
-                await solver.solve_captcha(
-                    captcha_container=captcha_container,
-                    captcha_type=challenge_type,
-                    expected_content_selector=expected_selector,)
-                is_solved = "just a moment" not in await page.title()
+            try:
+                async with ClickSolver(framework=FrameworkType.CAMOUFOX, page=page, max_attempts=3, attempt_delay=3) as solver:
+                    await solver.solve_captcha(
+                        captcha_container=captcha_container,
+                        captcha_type=challenge_type)
+                    if await self.is_bypassed(page):
+                        self.log_message("Cloudflare challenge solved successfully!")
+                        return True
+            except Exception as e:
+                self.log_message(f"Click solver reported: {e}")
 
-            if is_solved:
-                self.log_message("Cloudflare challenge solved successfully!")
-                await asyncio.sleep(1)
-                return True
-            else:
-                self.log_message("Failed to solve Cloudflare challenge")
-                return False
+            # The click solver's internal verification can be too hasty —
+            # the checkbox click may have worked but the page needs more
+            # time to navigate past the challenge. Poll for resolution.
+            self.log_message("Waiting for page to resolve after challenge interaction...")
+            for i in range(self.max_retries):
+                await asyncio.sleep(3)
+                try:
+                    if await self.is_bypassed(page):
+                        self.log_message("Cloudflare challenge resolved after waiting")
+                        return True
+                except Exception:
+                    # Page may be mid-navigation — keep polling
+                    pass
+
+            self.log_message("Failed to solve Cloudflare challenge")
+            return False
 
         except Exception as e:
             self.log_message(f"Error solving Cloudflare challenge: {e}")
