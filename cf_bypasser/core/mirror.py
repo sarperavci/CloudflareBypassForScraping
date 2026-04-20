@@ -120,15 +120,14 @@ class RequestMirror:
                 if bypass_cache:
                     logging.info("x-bypass-cache header detected - forcing fresh cookie generation")
                 
-                # Get or generate Cloudflare cookies
-                target_url = self.build_target_url(hostname, "/")  # Use root for cookie generation
-                
+                target_url = self.build_target_url(hostname, path, query_string)
+
                 # If bypass_cache is True, invalidate existing cache first
                 if bypass_cache:
                     parsed_hostname = urlparse(target_url).netloc
                     cache_key = md5_hash(parsed_hostname + (proxy or ""))
                     self.bypasser.cookie_cache.invalidate(cache_key)
-                
+
                 cf_data = await self.bypasser.get_or_generate_cookies(target_url, proxy)
                 
                 if not cf_data:
