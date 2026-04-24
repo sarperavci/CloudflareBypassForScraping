@@ -28,6 +28,27 @@ One line of code. Instant data access
 
 - Discord: [https://discord.com/invite/birdproxies](https://discord.com/invite/birdproxies)
 
+### RapidProxy
+
+<a href="https://www.rapidproxy.io/?ref=sarperavci"><img src="https://github.com/user-attachments/assets/6d3819b8-7065-4bd4-bda7-b06e0fe04477" /></a>
+
+[RapidProxy](https://www.rapidproxy.io/?ref=sarperavci) – Power Your Data with Premium Proxies
+
+🎁 Try proxies [for free](https://www.rapidproxy.io/?ref=sarperavci) + Use code **RAPID10** for 10% OFF
+
+- 90M+ IPs in 200+ countries & regions
+- No expiration on traffic — use anytime, no pressure
+- Unlimited concurrency for maximum performance
+- Starting from just $0.65/GB — built for scale
+- City-level targeting for precise geo access
+- Flexible session control tailored to your needs
+- Enterprise-grade speed & reliability
+- Built for large-scale automation
+
+**💡 Built for Growth** — Whether you're scaling scraping operations, running automation, or accessing global content, RapidProxy delivers the speed, stability, and flexibility you need to grow without limits.
+
+👉 [Start your free trial today](https://www.rapidproxy.io/?ref=sarperavci)
+
 ---
 
 
