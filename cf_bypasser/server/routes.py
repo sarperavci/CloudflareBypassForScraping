@@ -16,7 +16,6 @@ from cf_bypasser.server.models import (
     MirrorRequestInfo, CookieGenerationInfo
 )
 
-# Global instances
 global_bypasser = None
 global_mirror = None
 
@@ -30,20 +29,16 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """
     global global_bypasser, global_mirror
     
-    # Startup
     logger.info("Starting Cloudflare Bypasser Server...")
     
-    # Initialize bypasser with cache
     global_bypasser = CamoufoxBypasser(max_retries=5, log=True)
     
-    # Initialize request mirror
     global_mirror = RequestMirror(global_bypasser)
     
     logger.info("Server initialization complete")
     
     yield
     
-    # Shutdown
     logger.info("Shutting down Cloudflare Bypasser Server...")
     
     try:
@@ -90,27 +85,22 @@ def setup_routes(app: FastAPI):
         If x-hostname header is present, this is treated as a mirror request
         and forwarded to the target site's /cookies path.
         """
-        # Check if this is a mirror request (has x-hostname header)
         headers = dict(request.headers)
         if any(key.lower() == 'x-hostname' for key in headers.keys()):
-            # This is a mirror request - forward to the catch-all handler
             return await mirror_request(request, "cookies")
         
-        # For internal API, url is required
         if not url:
             raise HTTPException(
                 status_code=400,
                 detail="url parameter is required when x-hostname header is not present"
             )
         
-        # Validate URL
         if not is_safe_url(url):
             raise HTTPException(
                 status_code=400, 
                 detail="Invalid or unsafe URL - localhost and private IPs are not allowed"
             )
         
-        # Validate proxy format if provided
         if proxy and not proxy.startswith(('http://', 'https://', 'socks4://', 'socks5://')):
             raise HTTPException(
                 status_code=400,
@@ -121,10 +111,8 @@ def setup_routes(app: FastAPI):
             start_time = time.time()
             logger.info(f"Getting cookies for {url} (retries: {retries}, proxy: {'yes' if proxy else 'no'})")
             
-            # Use the global bypasser or create a new one
             bypasser = global_bypasser or CamoufoxBypasser(max_retries=retries, log=True)
             
-            # Get cookies using the cache system
             data = await bypasser.get_or_generate_cookies(url, proxy)
             
             if not data:
@@ -160,26 +148,22 @@ def setup_routes(app: FastAPI):
         Returns the raw HTML content directly.
         
         """
-        # Check if this is a mirror request (has x-hostname header)
         headers = dict(request.headers)
         if any(key.lower() == 'x-hostname' for key in headers.keys()):
             return await mirror_request(request, "html")
         
-        # For internal API, url is required
         if not url:
             raise HTTPException(
                 status_code=400,
                 detail="url parameter is required when x-hostname header is not present"
             )
         
-        # Validate URL
         if not is_safe_url(url):
             raise HTTPException(
                 status_code=400, 
                 detail="Invalid or unsafe URL - localhost and private IPs are not allowed"
             )
         
-        # Validate proxy format if provided
         if proxy and not proxy.startswith(('http://', 'https://', 'socks4://', 'socks5://')):
             raise HTTPException(
                 status_code=400,
@@ -190,10 +174,8 @@ def setup_routes(app: FastAPI):
             start_time = time.time()
             logger.info(f"Getting HTML content for {url} (retries: {retries}, proxy: {'yes' if proxy else 'no'})")
             
-            # Use the global bypasser or create a new one
             bypasser = global_bypasser or CamoufoxBypasser(max_retries=retries, log=True)
             
-            # Get HTML content using the new method
             data = await bypasser.get_or_generate_html(url, proxy, bypass_cache=bypassCookieCache)
             
             if not data:
@@ -206,7 +188,6 @@ def setup_routes(app: FastAPI):
             logger.info(f"Successfully generated HTML content ({content_length} chars) and {len(data['cookies'])} cookies in {generation_time}ms")
             logger.info(f"Cloudflare cookies: {cf_cookies}")
             
-            # Return raw HTML content with proper headers
             return Response(
                 content=data["html"],
                 media_type="text/html",
@@ -294,17 +275,14 @@ def setup_routes(app: FastAPI):
         Returns the mirrored response from the target with Cloudflare protection bypassed.
         """
         
-        # Skip mirroring for cache management endpoints only
         if path.startswith("cache/"):
             raise HTTPException(status_code=404, detail="Not found")
         
         try:
             start_time = time.time()
             
-            # Extract headers
             headers = dict(request.headers)
             
-            # Extract mirror-specific headers
             hostname = None
             proxy = None
             bypass_cache = False
@@ -318,28 +296,24 @@ def setup_routes(app: FastAPI):
                 elif key_lower == 'x-bypass-cache':
                     bypass_cache = value.lower() in ('true', '1', 'yes', 'on')
             
-            # Validate required headers
             if not hostname:
                 raise HTTPException(
                     status_code=400, 
                     detail="x-hostname header is required for request mirroring"
                 )
             
-            # Validate hostname
             if not is_safe_url(f"https://{hostname}"):
                 raise HTTPException(
                     status_code=400, 
                     detail="Invalid or unsafe hostname - localhost and private IPs are not allowed"
                 )
             
-            # Validate proxy format if provided
             if proxy and not proxy.startswith(('http://', 'https://', 'socks4://', 'socks5://')):
                 raise HTTPException(
                     status_code=400,
                     detail="x-proxy must start with http://, https://, socks4://, or socks5://"
                 )
             
-            # Log request info
             request_info = MirrorRequestInfo(
                 method=request.method,
                 hostname=hostname,
@@ -356,16 +330,12 @@ def setup_routes(app: FastAPI):
             if bypass_cache:
                 logger.info("x-bypass-cache header detected - forcing fresh cookie generation")
             
-            # Get request body
             body = await request.body()
             
-            # Get query string
             query_string = str(request.query_params)
             
-            # Use the global mirror or create a new one
             mirror = global_mirror or RequestMirror(global_bypasser)
             
-            # Mirror the request
             status_code, response_headers, response_content = await mirror.mirror_request(
                 method=request.method,
                 path=f"/{path}" if path else "/",
@@ -376,18 +346,15 @@ def setup_routes(app: FastAPI):
             
             processing_time = int((time.time() - start_time) * 1000)
             
-            # Log response info
             logger.info(f"Request to {hostname} completed with status {status_code} in {processing_time}ms")
             logger.info(f"Response size: {len(response_content)} bytes")
             
-            # Create response with proper headers
             response = Response(
                 content=response_content,
                 status_code=status_code,
                 headers=response_headers
             )
             
-            # Add custom headers for debugging
             response.headers["x-cf-bypasser-version"] = "2.0.0"
             response.headers["x-processing-time-ms"] = str(processing_time)
             response.headers["x-cache-bypassed"] = str(bypass_cache).lower()
