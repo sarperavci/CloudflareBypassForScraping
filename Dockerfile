@@ -1,73 +1,55 @@
 FROM ubuntu:rolling
 
-# Set environment variables to avoid interactive prompts during build
 ENV DEBIAN_FRONTEND=noninteractive
-# Install system dependencies for Chrome and Python packages
+ENV CLOAKBROWSER_AUTO_UPDATE=false
+
 USER root
 RUN apt-get update && apt-get install -y \
-    software-properties-common \
     python3-pip \
     python3-venv \
     wget \
-    gnupg \
     curl \
+    ca-certificates \
     xvfb \
-    libgtk-3-0 \
-    libgtk-3-dev \
-    libxss1 \
-    libxtst6 \
-    libxrandr2 \
-    libasound2t64 \
-    libpangocairo-1.0-0 \
+    fonts-liberation \
+    fonts-noto-color-emoji \
+    libnss3 \
+    libnspr4 \
     libatk1.0-0 \
-    libcairo-gobject2 \
-    libgdk-pixbuf-2.0-0 \
-    libdbus-glib-1-2 \
-    libxt6 \
+    libatk-bridge2.0-0 \
+    libcups2 \
+    libdrm2 \
+    libxkbcommon0 \
     libxcomposite1 \
     libxdamage1 \
-    libxext6 \
     libxfixes3 \
-    libxrender1 \
-    libxi6 \
-    fonts-liberation \
-    libnss3 \
-    lsb-release \
+    libxrandr2 \
+    libgbm1 \
+    libpango-1.0-0 \
+    libcairo2 \
+    libasound2t64 \
+    libatspi2.0-0 \
+    libx11-6 \
+    libxcb1 \
+    libxext6 \
+    libgtk-3-0 \
     && rm -rf /var/lib/apt/lists/*
-
 
 WORKDIR /app
 COPY . .
-# Copy requirements.txt and install dependencies
-COPY requirements.txt .
 
-# Change ownership of app directory to ubuntu first
 RUN chown -R ubuntu:ubuntu /app
 
-# Switch to ubuntu user to create venv and install packages
 USER ubuntu
 
-# Create and activate virtual environment as ubuntu user
 RUN python3 -m venv /app/venv
 ENV PATH="/app/venv/bin:$PATH"
 
-# Install pip and requirements in virtual environment
 RUN pip install --upgrade pip
 RUN pip install --no-cache-dir -r server_requirements.txt
 
-# Fetch Camoufox as ubuntu user
-RUN camoufox fetch
+# Download the patched stealth Chromium into the ubuntu user's cache
+RUN python3 -c "import cloakbrowser; print(cloakbrowser.ensure_binary())"
 
-# Switch back to root for remaining setup
-USER root
-WORKDIR /app
-
-
-# Fix permissions for playwright_captcha addon directory (needs write access at runtime)
-RUN chmod -R 777 /app/venv/lib/python*/site-packages/playwright_captcha/utils/camoufox_add_init_script/addon/ || true
-
-# Switch to ubuntu user for runtime
-USER ubuntu
-
-# RUN the application
-CMD ["python3", "server.py"]
+# Browser must run headed for managed Turnstile; provide a virtual display
+CMD ["xvfb-run", "-a", "--server-args=-screen 0 1920x1080x24", "python3", "server.py"]

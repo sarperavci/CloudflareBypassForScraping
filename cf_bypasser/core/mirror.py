@@ -23,8 +23,7 @@ class RequestMirror:
         hostname: Optional[str] = None
         proxy: Optional[str] = None
         bypass_cache: bool = False
-        
-        # Look for headers (case-insensitive)
+
         for key, value in headers.items():
             key_lower = key.lower()
             if key_lower == 'x-hostname':
@@ -48,7 +47,6 @@ class RequestMirror:
     def merge_cookies(self, incoming_cookies: str, cf_cookies: Dict[str, str]) -> str:
         """Merge incoming cookies with Cloudflare clearance cookies."""
         try:
-            # Parse incoming cookies
             incoming_dict = {}
             if incoming_cookies:
                 for cookie in incoming_cookies.split(';'):
@@ -60,7 +58,6 @@ class RequestMirror:
             # Merge with CF cookies (user cookies take precedence)
             merged_cookies = {**cf_cookies, **incoming_dict}
             
-            # Convert back to cookie string
             cookie_pairs = [f"{name}={value}" for name, value in merged_cookies.items()]
             return '; '.join(cookie_pairs)
         except Exception as e:
@@ -69,7 +66,6 @@ class RequestMirror:
             return '; '.join([f"{name}={value}" for name, value in cf_cookies.items()])
     
     def build_target_url(self, hostname: str, path: str, query_string: str = None) -> str:
-        """Build the target URL."""
         if not hostname.startswith(('http://', 'https://')):
             hostname = f"https://{hostname}"
         
@@ -80,7 +76,6 @@ class RequestMirror:
         return url
     
     async def get_session(self, hostname: str, proxy: Optional[str] = None) -> AsyncSession:
-        """Get or create a curl-cffi session for the hostname."""
         session_key = f"{hostname}:{proxy or 'no-proxy'}"
         
         if session_key not in self.session_cache:
@@ -89,7 +84,7 @@ class RequestMirror:
                 proxy_dict = {"http": proxy, "https": proxy}
             
             session = AsyncSession(
-                impersonate="firefox",  # Use Firefox impersonation
+                impersonate="chrome",  # match CloakBrowser's Chrome fingerprint
                 proxies=proxy_dict,
                 timeout=30
             )
@@ -108,7 +103,6 @@ class RequestMirror:
     ) -> Tuple[int, Dict[str, str], bytes]:
         """Mirror the request to the target hostname with CF bypass."""
         
-        # Extract hostname, proxy, and bypass cache flag
         hostname, proxy, bypass_cache = self.extract_mirror_headers(headers)
         
         if not hostname:
@@ -133,14 +127,12 @@ class RequestMirror:
                 if not cf_data:
                     raise Exception("Failed to get Cloudflare clearance cookies")
                 
-                # Strip mirror headers and prepare request headers
                 clean_headers = self.strip_mirror_headers(headers)
                 
                 # Override User-Agent with the one used for CF bypass
                 clean_headers['user-agent'] = cf_data['user_agent']
                 clean_headers.pop("host", None)
                 
-                # Merge cookies - find Cookie header case-insensitively
                 incoming_cookies = ''
                 cookie_header_key = None
                 for key in clean_headers:
@@ -151,24 +143,20 @@ class RequestMirror:
 
                 merged_cookies = self.merge_cookies(incoming_cookies, cf_data['cookies'])
 
-                # Remove original cookie header (if exists) and set with standard casing
                 if cookie_header_key:
                     del clean_headers[cookie_header_key]
                 clean_headers['Cookie'] = merged_cookies
                 
-                # Add Firefox-like headers for better impersonation
-                firefox_headers = BrowserConfig.get_firefox_headers()
-                for key, value in firefox_headers.items():
+                # Add Chrome-like headers for better impersonation
+                browser_headers = BrowserConfig.get_chrome_headers()
+                for key, value in browser_headers.items():
                     if key.lower() not in [h.lower() for h in clean_headers.keys()]:
                         clean_headers[key] = value
                 
-                # Build final target URL
                 target_url = self.build_target_url(hostname, path, query_string)
                 
-                # Get session
                 session = await self.get_session(hostname, proxy)
                 
-                # Make the request
                 response = await session.request(
                     method=method,
                     url=target_url,
@@ -177,21 +165,17 @@ class RequestMirror:
                     allow_redirects=False  # Let the client handle redirects
                 )
                 
-                # Convert response headers to dict
                 response_headers = dict(response.headers)
                 response_content = response.content
                 status_code = response.status_code
                 
-                # Check if we got a 403 Forbidden response
                 if status_code == 403 and attempt < max_retries:
                     logging.warning(f"Got 403 Forbidden from {hostname}, invalidating cache and retrying...")
                     
-                    # Invalidate the cached cookies for this hostname
                     parsed_hostname = urlparse(target_url).netloc
                     cache_key = md5_hash(parsed_hostname + (proxy or ""))
                     self.bypasser.cookie_cache.invalidate(cache_key)
                     
-                    # Wait a bit before retrying
                     await asyncio.sleep(.5)
                     continue
                 
@@ -204,7 +188,6 @@ class RequestMirror:
                     elif k_lower == "content-length":
                         final_headers[k] = str(len(response.content))
                     else:
-                        # Keep all other headers as-is
                         final_headers[k] = v
                 
                 logging.info(f"Request to {hostname} completed with status {status_code}")
@@ -238,7 +221,6 @@ class CookieMerger:
     
     @staticmethod
     def parse_cookie_string(cookie_string: str) -> Dict[str, str]:
-        """Parse cookie string into dictionary."""
         cookies = {}
         if not cookie_string:
             return cookies
@@ -253,7 +235,6 @@ class CookieMerger:
     
     @staticmethod
     def cookies_to_string(cookies: Dict[str, str]) -> str:
-        """Convert cookie dictionary to string."""
         return '; '.join([f"{name}={value}" for name, value in cookies.items()])
     
     @staticmethod
