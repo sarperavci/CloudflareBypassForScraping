@@ -13,7 +13,7 @@ def client():
 
 @pytest.fixture
 def mock_bypasser():
-    """Mock the CamoufoxBypasser for testing."""
+    """Mock the CloakBypasser for testing."""
     mock_instance = MagicMock()
     mock_instance.get_or_generate_cookies = AsyncMock(return_value={
         'cookies': {'cf_clearance': 'test_token_123', 'session': 'abc'},

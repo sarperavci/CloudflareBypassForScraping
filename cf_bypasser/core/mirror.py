@@ -6,7 +6,7 @@ from urllib.parse import urlparse, urljoin
 
 from curl_cffi.requests import AsyncSession
 
-from cf_bypasser.core.bypasser import CamoufoxBypasser
+from cf_bypasser.core.bypasser import CloakBypasser
 from cf_bypasser.utils.config import BrowserConfig
 from cf_bypasser.utils.misc import md5_hash
 
@@ -14,8 +14,8 @@ from cf_bypasser.utils.misc import md5_hash
 class RequestMirror:
     """Handles dynamic request mirroring with Cloudflare bypass."""
     
-    def __init__(self, bypasser: CamoufoxBypasser = None):
-        self.bypasser: CamoufoxBypasser = bypasser or CamoufoxBypasser()
+    def __init__(self, bypasser: CloakBypasser = None):
+        self.bypasser: CloakBypasser = bypasser or CloakBypasser()
         self.session_cache: Dict[str, AsyncSession] = {}  # Cache curl-cffi sessions per hostname
         
     def extract_mirror_headers(self, headers: Dict[str, str]) -> Tuple[Optional[str], Optional[str], bool]:

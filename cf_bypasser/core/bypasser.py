@@ -36,7 +36,7 @@ _FIND_CHECKBOX_JS = """() => {
 }"""
 
 
-class CamoufoxBypasser:
+class CloakBypasser:
     """Cloudflare bypasser backed by CloakBrowser (stealth Chromium) with cookie caching."""
 
     def __init__(self, max_retries: int = 5, log: bool = True, cache_file: str = "cf_cookie_cache.json"):

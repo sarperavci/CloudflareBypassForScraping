@@ -97,14 +97,6 @@ class ProxyInfo(BaseModel):
         return v
 
 
-class BrowserConfigInfo(BaseModel):
-    os: str = Field(..., description="Operating system used")
-    firefox_version: int = Field(..., description="Firefox version")
-    screen_resolution: str = Field(..., description="Screen resolution")
-    user_agent: str = Field(..., description="Generated user agent")
-    language: str = Field(..., description="Browser language")
-
-
 class BypassAttemptResult(BaseModel):
     success: bool = Field(..., description="Whether bypass was successful")
     attempt_number: int = Field(..., description="Attempt number")

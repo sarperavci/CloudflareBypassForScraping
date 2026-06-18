@@ -30,9 +30,9 @@ def expected_text():
 
 @pytest.fixture
 async def bypasser():
-    """Create a CamoufoxBypasser instance for testing."""
-    from cf_bypasser.core.bypasser import CamoufoxBypasser
-    instance = CamoufoxBypasser(max_retries=5, log=True)
+    """Create a CloakBypasser instance for testing."""
+    from cf_bypasser.core.bypasser import CloakBypasser
+    instance = CloakBypasser(max_retries=5, log=True)
     yield instance
     # Cleanup is handled per-request now, but just in case
     await instance.cleanup()

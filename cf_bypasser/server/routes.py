@@ -8,7 +8,7 @@ from urllib.parse import urlparse
 from fastapi import FastAPI, HTTPException, Request, Response, Query, Depends
 from fastapi.responses import JSONResponse
 
-from cf_bypasser.core.bypasser import CamoufoxBypasser
+from cf_bypasser.core.bypasser import CloakBypasser
 from cf_bypasser.core.mirror import RequestMirror
 from cf_bypasser.server.models import (
     CookieRequest, CookieResponse, MirrorRequestHeaders,
@@ -31,7 +31,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     
     logger.info("Starting Cloudflare Bypasser Server...")
     
-    global_bypasser = CamoufoxBypasser(max_retries=5, log=True)
+    global_bypasser = CloakBypasser(max_retries=5, log=True)
     
     global_mirror = RequestMirror(global_bypasser)
     
@@ -111,7 +111,7 @@ def setup_routes(app: FastAPI):
             start_time = time.time()
             logger.info(f"Getting cookies for {url} (retries: {retries}, proxy: {'yes' if proxy else 'no'})")
             
-            bypasser = global_bypasser or CamoufoxBypasser(max_retries=retries, log=True)
+            bypasser = global_bypasser or CloakBypasser(max_retries=retries, log=True)
             
             data = await bypasser.get_or_generate_cookies(url, proxy)
             
@@ -174,7 +174,7 @@ def setup_routes(app: FastAPI):
             start_time = time.time()
             logger.info(f"Getting HTML content for {url} (retries: {retries}, proxy: {'yes' if proxy else 'no'})")
             
-            bypasser = global_bypasser or CamoufoxBypasser(max_retries=retries, log=True)
+            bypasser = global_bypasser or CloakBypasser(max_retries=retries, log=True)
             
             data = await bypasser.get_or_generate_html(url, proxy, bypass_cache=bypassCookieCache)
             
