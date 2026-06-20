@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 from dataclasses import dataclass
 from typing import Dict, Any, Optional
 
-from cf_bypasser.utils.constants import COOKIE_TTL_HOURS, DEFAULT_CACHE_FILE
+from cf_bypasser.utils.constants import COOKIE_TTL_MINUTES, DEFAULT_CACHE_FILE
 
 
 @dataclass
@@ -17,6 +17,7 @@ class CachedCookies:
     user_agent: str
     timestamp: datetime
     expires_at: datetime
+    exit_ip: Optional[str] = None  # proxy/exit IP at cache time, for the optional IP-change check
 
     def is_expired(self) -> bool:
         return datetime.now() >= self.expires_at
@@ -27,7 +28,8 @@ class CachedCookies:
             'cookies': self.cookies,
             'user_agent': self.user_agent,
             'timestamp': self.timestamp.isoformat(),
-            'expires_at': self.expires_at.isoformat()
+            'expires_at': self.expires_at.isoformat(),
+            'exit_ip': self.exit_ip,
         }
 
     @classmethod
@@ -37,7 +39,8 @@ class CachedCookies:
             cookies=data['cookies'],
             user_agent=data['user_agent'],
             timestamp=datetime.fromisoformat(data['timestamp']),
-            expires_at=datetime.fromisoformat(data['expires_at'])
+            expires_at=datetime.fromisoformat(data['expires_at']),
+            exit_ip=data.get('exit_ip'),
         )
 
 
@@ -92,15 +95,17 @@ class CookieCache:
                 self._save_cache()
             return None
 
-    def set(self, key: str, cookies: Dict[str, str], user_agent: str, ttl_hours: int = COOKIE_TTL_HOURS):
+    def set(self, key: str, cookies: Dict[str, str], user_agent: str,
+            ttl_minutes: int = COOKIE_TTL_MINUTES, exit_ip: Optional[str] = None):
         with self.lock:
-            expires_at = datetime.now() + timedelta(hours=ttl_hours)
+            expires_at = datetime.now() + timedelta(minutes=ttl_minutes)
             cached = CachedCookies(
                 key=key,
                 cookies=cookies,
                 user_agent=user_agent,
                 timestamp=datetime.now(),
-                expires_at=expires_at
+                expires_at=expires_at,
+                exit_ip=exit_ip,
             )
             self.cache[key] = cached
             self._save_cache()

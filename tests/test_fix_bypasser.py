@@ -270,3 +270,45 @@ def test_cache_key_no_collision():
     a = cache_key("foo.com", "bar")
     b = cache_key("foo.comb", "ar")
     assert a != b
+
+
+def _ip_check_setup(monkeypatch, ip_sequence):
+    bp._browser_semaphores.clear()
+    bp._inflight_locks.clear()
+    monkeypatch.setattr(bp, "IP_CHECK_ENABLED", True)
+    ips = iter(ip_sequence)
+
+    async def fake_get_exit_ip(proxy=None):
+        return next(ips)
+
+    monkeypatch.setattr(bp, "get_exit_ip", fake_get_exit_ip)
+
+    launches = {"n": 0}
+
+    async def fake_launch(**kwargs):
+        launches["n"] += 1
+        page = FakePage(html=NON_CF_HTML, title="home")
+        return FakeContext(page, cookies=[{"name": "cf_clearance", "value": "x"}])
+
+    monkeypatch.setattr(bp.cb, "launch_context_async", fake_launch)
+    return launches
+
+
+@pytest.mark.asyncio
+async def test_ip_check_invalidates_on_rotation(tmp_path, monkeypatch):
+    # gen records 1.1.1.1; next read sees 2.2.2.2 (rotated) -> invalidate + regen records 2.2.2.2
+    launches = _ip_check_setup(monkeypatch, ["1.1.1.1", "2.2.2.2", "2.2.2.2"])
+    b = make_bypasser(tmp_path)
+    assert await b.get_or_generate_cookies("https://site.com") is not None
+    assert await b.get_or_generate_cookies("https://site.com") is not None
+    assert launches["n"] == 2  # cache was invalidated and regenerated
+
+
+@pytest.mark.asyncio
+async def test_ip_check_keeps_cache_when_ip_stable(tmp_path, monkeypatch):
+    # gen records 9.9.9.9; next read sees 9.9.9.9 (same) -> serve cache, no relaunch
+    launches = _ip_check_setup(monkeypatch, ["9.9.9.9", "9.9.9.9"])
+    b = make_bypasser(tmp_path)
+    assert await b.get_or_generate_cookies("https://site.com") is not None
+    assert await b.get_or_generate_cookies("https://site.com") is not None
+    assert launches["n"] == 1  # cache reused

@@ -11,7 +11,7 @@ def _cache_path(tmp_path):
 def test_roundtrip_persists_and_reloads(tmp_path):
     path = _cache_path(tmp_path)
     c = CookieCache(cache_file=path)
-    c.set("example.com", {"cf_clearance": "abc"}, "UA/1.0", ttl_hours=2)
+    c.set("example.com", {"cf_clearance": "abc"}, "UA/1.0", ttl_minutes=2)
 
     fresh = CookieCache(cache_file=path)
     got = fresh.get("example.com")
@@ -20,10 +20,25 @@ def test_roundtrip_persists_and_reloads(tmp_path):
     assert got.user_agent == "UA/1.0"
 
 
+def test_default_ttl_is_29_minutes(tmp_path):
+    c = CookieCache(cache_file=_cache_path(tmp_path))
+    c.set("h", {"cf_clearance": "x"}, "UA")  # no ttl -> default
+    cached = c.get("h")
+    delta_minutes = (cached.expires_at - cached.timestamp).total_seconds() / 60
+    assert abs(delta_minutes - 29) < 0.5
+
+
+def test_exit_ip_round_trips(tmp_path):
+    path = _cache_path(tmp_path)
+    c = CookieCache(cache_file=path)
+    c.set("h", {"cf_clearance": "x"}, "UA", exit_ip="203.0.113.7")
+    assert CookieCache(cache_file=path).get("h").exit_ip == "203.0.113.7"
+
+
 def test_on_disk_json_valid(tmp_path):
     path = _cache_path(tmp_path)
     c = CookieCache(cache_file=path)
-    c.set("example.com", {"k": "v"}, "UA", ttl_hours=1)
+    c.set("example.com", {"k": "v"}, "UA", ttl_minutes=1)
 
     with open(path) as f:
         data = json.load(f)
@@ -34,7 +49,7 @@ def test_on_disk_json_valid(tmp_path):
 def test_failed_save_does_not_corrupt_existing(tmp_path, monkeypatch):
     path = _cache_path(tmp_path)
     c = CookieCache(cache_file=path)
-    c.set("good.com", {"cf_clearance": "original"}, "UA", ttl_hours=2)
+    c.set("good.com", {"cf_clearance": "original"}, "UA", ttl_minutes=2)
 
     with open(path) as f:
         original_bytes = f.read()
@@ -47,7 +62,7 @@ def test_failed_save_does_not_corrupt_existing(tmp_path, monkeypatch):
 
     monkeypatch.setattr(mod.json, "dump", boom)
     # _save_cache catches and logs; must not propagate or truncate file
-    c.set("good.com", {"cf_clearance": "new"}, "UA", ttl_hours=2)
+    c.set("good.com", {"cf_clearance": "new"}, "UA", ttl_minutes=2)
 
     with open(path) as f:
         after_bytes = f.read()

@@ -19,7 +19,9 @@ from cf_bypasser.utils.constants import (
     DEFAULT_MAX_RETRIES,
     DEFAULT_CACHE_FILE,
     MAX_CONCURRENT_BROWSERS,
+    IP_CHECK_ENABLED,
 )
+from cf_bypasser.utils.ipcheck import get_exit_ip
 from cf_bypasser.cache.cookie_cache import CookieCache
 
 _MAX_CONCURRENT_BROWSERS = MAX_CONCURRENT_BROWSERS
@@ -277,12 +279,25 @@ class CloakBypasser:
             return True
         return bool(cookies.get("cf_clearance"))
 
+    async def _read_valid_cache(self, key: str, proxy: Optional[str]):
+        """Return a still-valid cache entry, or None — invalidating it if the proxy exit IP rotated."""
+        cached = self.cookie_cache.get(key)
+        if not cached:
+            return None
+        if IP_CHECK_ENABLED and cached.exit_ip:
+            current = await get_exit_ip(proxy)
+            if current and current != cached.exit_ip:
+                self.log_message(f"Proxy exit IP changed ({cached.exit_ip} -> {current}); invalidating cookies for {key}")
+                self.cookie_cache.invalidate(key)
+                return None
+        return cached
+
     async def _run_in_browser(self, url, proxy, key, *, restore_cookies, extractor):
         """Shared browser skeleton: launch, solve, extract, cache. Returns the extractor dict or None."""
         cached_ua = None
         cached_cookies = None
         if restore_cookies:
-            cached = self.cookie_cache.get(key)
+            cached = await self._read_valid_cache(key, proxy)
             if cached:
                 cached_cookies = cached.cookies
                 cached_ua = cached.user_agent
@@ -303,7 +318,8 @@ class CloakBypasser:
                 if success:
                     data = await extractor(context, page, status)
                     if data and self._is_trustworthy(data["cookies"], cf_detected):
-                        self.cookie_cache.set(key, data["cookies"], data["user_agent"])
+                        exit_ip = await get_exit_ip(proxy) if IP_CHECK_ENABLED else None
+                        self.cookie_cache.set(key, data["cookies"], data["user_agent"], exit_ip=exit_ip)
                         return data
                     if data:
                         self.log_message("CF detected but no cf_clearance cookie -- not caching")
@@ -319,13 +335,13 @@ class CloakBypasser:
         hostname = urlparse(url).netloc
         key = cache_key(hostname, proxy)
 
-        cached = self.cookie_cache.get(key)
+        cached = await self._read_valid_cache(key, proxy)
         if cached:
             return {"cookies": cached.cookies, "user_agent": cached.user_agent}
 
         async with _inflight_lock(key):
             # another waiter may have populated the cache while we queued
-            cached = self.cookie_cache.get(key)
+            cached = await self._read_valid_cache(key, proxy)
             if cached:
                 return {"cookies": cached.cookies, "user_agent": cached.user_agent}
 
