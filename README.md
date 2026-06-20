@@ -69,7 +69,7 @@ docker run -p 8000:8000 ghcr.io/sarperavci/cloudflarebypassforscraping:latest
 
 ## Manual Installation
 ```bash
-pip install -r requirements.txt
+pip install -r server_requirements.txt
 python server.py
 ```
 
@@ -111,7 +111,7 @@ curl "http://localhost:8000/api/data" \
 
 ### Basic Cookie Extraction
 
-The `/cookies` endpoint allows you to get Cloudflare cookies for a specific URL without mirroring a request. A random Firefox version on a random OS is used as the user agent.
+The `/cookies` endpoint allows you to get Cloudflare cookies for a specific URL without mirroring a request.
 
 ```bash
 $ curl "http://localhost:8000/cookies?url=https://nopecha.com/demo/cloudflare"
@@ -121,7 +121,7 @@ $ curl "http://localhost:8000/cookies?url=https://nopecha.com/demo/cloudflare"
   "cookies": {
     "cf_clearance": "SJHuYhHrTZpXDUe8iMuzEUpJxocmOW8ougQVS0.aK5g-1723665177-1.0.1.1-5_NOoP19LQZw4TQ4BLwJmtrXBoX8JbKF5ZqsAOxRNOnW2rmDUwv4hQ7BztnsOfB9DQ06xR5hR_hsg3n8xteUCw"
   },
-  "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:145.0) Gecko/20100101 Firefox/145.0"
+  "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36"
 }
 ```
 
@@ -156,10 +156,6 @@ Existing integrations continue to work unchanged:
 ```bash
 # Legacy endpoint still works
 curl "http://localhost:8000/cookies?url=https://example.com"
-
-# Old bypass server - I'm keeping it as alternative method
-pip install -r old_server_requirements.txt
-python old_server.py
 ```
 
 # Example Projects

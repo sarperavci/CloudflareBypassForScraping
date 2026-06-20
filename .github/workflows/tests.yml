@@ -53,7 +53,6 @@ jobs:
     - name: Install Python dependencies
       run: |
         python -m pip install --upgrade pip setuptools wheel
-        pip install -r requirements.txt
         pip install -r server_requirements.txt
         pip install -r tests/test-requirements.txt
 
@@ -145,7 +144,6 @@ jobs:
           libpango-1.0-0 libcairo2 libasound2t64 libatspi2.0-0 libx11-6 libxcb1 \
           libxext6 libgtk-3-0
         python -m pip install --upgrade pip
-        pip install -r requirements.txt
         pip install -r server_requirements.txt
         pip install -r tests/test-requirements.txt
 
@@ -188,7 +186,6 @@ jobs:
           libpango-1.0-0 libcairo2 libasound2t64 libatspi2.0-0 libx11-6 libxcb1 \
           libxext6 libgtk-3-0
         python -m pip install --upgrade pip
-        pip install -r requirements.txt
         pip install -r server_requirements.txt
         pip install -r tests/test-requirements.txt
 
