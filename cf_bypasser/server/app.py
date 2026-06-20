@@ -1,28 +1,16 @@
 import logging
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
-from typing import Dict
 
+from cf_bypasser.utils.constants import APP_VERSION
 from .routes import setup_routes, lifespan
-
-
-class HealthResponse(BaseModel):
-    status: str
-    version: str
-    features: list
-
-
-class CookieResponse(BaseModel):
-    cookies: Dict[str, str]
-    user_agent: str
 
 
 def create_app() -> FastAPI:
     app = FastAPI(
         title="Cloudflare Bypasser",
         description="CloakBrowser-based Cloudflare bypasser with request mirroring",
-        version="2.0.0",
+        version=APP_VERSION,
         lifespan=lifespan
     )
 

@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import os
+from collections import namedtuple
 from typing import Optional, Dict, Any
 from urllib.parse import urlparse
 
@@ -9,36 +10,34 @@ os.environ.setdefault("CLOAKBROWSER_AUTO_UPDATE", "false")
 
 import cloakbrowser as cb
 
-from cf_bypasser.utils.misc import cache_key, get_browser_init_lock, md5_hash
+from cf_bypasser.utils.misc import cache_key, get_browser_init_lock, per_loop
+from cf_bypasser.utils.constants import (
+    DEFAULT_TIMEOUT_MS,
+    CHALLENGE_SETTLE_SECONDS,
+    RETRY_POLL_SECONDS,
+    CONTEXT_CLOSE_TIMEOUT_SECONDS,
+    DEFAULT_MAX_RETRIES,
+    DEFAULT_CACHE_FILE,
+    MAX_CONCURRENT_BROWSERS,
+)
 from cf_bypasser.cache.cookie_cache import CookieCache
 
-DEFAULT_TIMEOUT_MS = 30000
-
-_MAX_CONCURRENT_BROWSERS = int(os.environ.get("CF_MAX_CONCURRENT_BROWSERS", "4"))
+_MAX_CONCURRENT_BROWSERS = MAX_CONCURRENT_BROWSERS
 
 # One semaphore + one in-flight lock registry per event loop (multi-loop pytest safe).
 _browser_semaphores: dict = {}
 _inflight_locks: dict = {}
 
+ChallengeResult = namedtuple("ChallengeResult", ("success", "cf_detected", "status"))
+
 
 def _browser_semaphore() -> asyncio.Semaphore:
-    try:
-        loop = asyncio.get_running_loop()
-    except RuntimeError:
-        loop = None
-    sem = _browser_semaphores.get(loop)
-    if sem is None:
-        sem = asyncio.Semaphore(_MAX_CONCURRENT_BROWSERS)
-        _browser_semaphores[loop] = sem
-    return sem
+    # read _MAX_CONCURRENT_BROWSERS at creation time so monkeypatching it takes effect
+    return per_loop(_browser_semaphores, lambda: asyncio.Semaphore(_MAX_CONCURRENT_BROWSERS))
 
 
 def _inflight_lock(key: str) -> asyncio.Lock:
-    try:
-        loop = asyncio.get_running_loop()
-    except RuntimeError:
-        loop = None
-    registry = _inflight_locks.setdefault(loop, {})
+    registry = per_loop(_inflight_locks, dict)
     lock = registry.get(key)
     if lock is None:
         lock = asyncio.Lock()
@@ -72,7 +71,7 @@ _FIND_CHECKBOX_JS = """() => {
 class CloakBypasser:
     """Cloudflare bypasser backed by CloakBrowser (stealth Chromium) with cookie caching."""
 
-    def __init__(self, max_retries: int = 5, log: bool = True, cache_file: str = "cf_cookie_cache.json"):
+    def __init__(self, max_retries: int = DEFAULT_MAX_RETRIES, log: bool = True, cache_file: str = DEFAULT_CACHE_FILE):
         self.max_retries = max_retries
         self.log = log
         self.cookie_cache = CookieCache(cache_file)
@@ -200,7 +199,7 @@ class CloakBypasser:
                 self.log_message(f"Navigation warning: {nav_err}")
 
             # let the challenge scripts load before deciding it's unprotected
-            await asyncio.sleep(5)
+            await asyncio.sleep(CHALLENGE_SETTLE_SECONDS)
             try:
                 html_content = await page.content()
                 content_ok = True
@@ -212,38 +211,38 @@ class CloakBypasser:
                 # a failed read tells us nothing; never claim success on empty content
                 self.log_message("Could not read page content -- treating as unconfirmed")
                 bypassed = await self.is_bypassed(page)
-                return bypassed, cf_detected, status
+                return ChallengeResult(bypassed, cf_detected, status)
 
             if "cloudflare" not in html_content.lower():
                 self.log_message("No Cloudflare protection detected -- either not protected or already bypassed")
-                return True, cf_detected, status
+                return ChallengeResult(True, cf_detected, status)
 
             cf_detected = True
             if await self.is_bypassed(page):
                 self.log_message("No Cloudflare challenge detected or already bypassed")
-                return True, cf_detected, status
+                return ChallengeResult(True, cf_detected, status)
 
             self.log_message("Cloudflare challenge detected. Waiting for resolution...")
             clicked = False
             for _ in range(self.max_retries):
                 if await self.is_bypassed(page):
                     self.log_message("Cloudflare challenge solved successfully!")
-                    return True, cf_detected, status
+                    return ChallengeResult(True, cf_detected, status)
                 # non-interactive challenges auto-resolve; interactive ones need one click
                 if not clicked:
                     clicked = await self._click_turnstile_checkbox(page)
-                await asyncio.sleep(3)
+                await asyncio.sleep(RETRY_POLL_SECONDS)
 
             if await self.is_bypassed(page):
                 self.log_message("Cloudflare challenge solved successfully!")
-                return True, cf_detected, status
+                return ChallengeResult(True, cf_detected, status)
 
             self.log_message("Failed to solve Cloudflare challenge")
-            return False, cf_detected, status
+            return ChallengeResult(False, cf_detected, status)
 
         except Exception as e:
             self.log_message(f"Error solving Cloudflare challenge: {e}")
-            return False, cf_detected, status
+            return ChallengeResult(False, cf_detected, status)
 
     async def get_cookies_and_user_agent(self, context, page) -> Optional[Dict[str, Any]]:
         try:
@@ -278,6 +277,43 @@ class CloakBypasser:
             return True
         return bool(cookies.get("cf_clearance"))
 
+    async def _run_in_browser(self, url, proxy, key, *, restore_cookies, extractor):
+        """Shared browser skeleton: launch, solve, extract, cache. Returns the extractor dict or None."""
+        cached_ua = None
+        cached_cookies = None
+        if restore_cookies:
+            cached = self.cookie_cache.get(key)
+            if cached:
+                cached_cookies = cached.cookies
+                cached_ua = cached.user_agent
+                self.log_message(f"Found cached cookies for {url}")
+
+        async with _browser_semaphore():
+            context = None
+            try:
+                context, page = await self.setup_browser(proxy, user_agent=cached_ua)
+
+                if cached_cookies:
+                    self.log_message("Restoring cached cookies...")
+                    cookie_list = [{"name": name, "value": value, "url": url} for name, value in cached_cookies.items()]
+                    await context.add_cookies(cookie_list)
+
+                result = await self.solve_cloudflare_challenge(url, page)
+                success, cf_detected, status = result
+                if success:
+                    data = await extractor(context, page, status)
+                    if data and self._is_trustworthy(data["cookies"], cf_detected):
+                        self.cookie_cache.set(key, data["cookies"], data["user_agent"])
+                        return data
+                    if data:
+                        self.log_message("CF detected but no cf_clearance cookie -- not caching")
+                return None
+            except Exception as e:
+                self.log_message(f"Error running browser for {url}: {e}")
+                return None
+            finally:
+                await self.cleanup_browser(context)
+
     async def get_or_generate_cookies(self, url: str, proxy: Optional[str] = None) -> Optional[Dict[str, Any]]:
         """Get cached cookies or generate new ones."""
         hostname = urlparse(url).netloc
@@ -295,25 +331,10 @@ class CloakBypasser:
 
             self.log_message(f"No cached cookies for {key}, generating new ones...")
 
-            async with _browser_semaphore():
-                context = None
-                try:
-                    context, page = await self.setup_browser(proxy)
+            async def extractor(context, page, status):
+                return await self.get_cookies_and_user_agent(context, page)
 
-                    success, cf_detected, _ = await self.solve_cloudflare_challenge(url, page)
-                    if success:
-                        data = await self.get_cookies_and_user_agent(context, page)
-                        if data and self._is_trustworthy(data["cookies"], cf_detected):
-                            self.cookie_cache.set(key, data["cookies"], data["user_agent"])
-                            return data
-                        if data:
-                            self.log_message("CF detected but no cf_clearance cookie -- not caching")
-                    return None
-                except Exception as e:
-                    self.log_message(f"Error in get_or_generate_cookies: {e}")
-                    return None
-                finally:
-                    await self.cleanup_browser(context)
+            return await self._run_in_browser(url, proxy, key, restore_cookies=False, extractor=extractor)
 
     async def get_or_generate_html(self, url: str, proxy: Optional[str] = None, bypass_cache: bool = False) -> Optional[Dict[str, Any]]:
         """Get HTML content along with cookies (cached or fresh)."""
@@ -324,39 +345,10 @@ class CloakBypasser:
 
         # No in-flight lock here: HTML must be fetched fresh per request, so concurrent
         # requests run in parallel (bounded by the semaphore) rather than serializing.
-        cached_cookies = None
-        cached_ua = None
-        if not bypass_cache:
-            cached = self.cookie_cache.get(key)
-            if cached:
-                cached_cookies = cached.cookies
-                cached_ua = cached.user_agent
-                self.log_message(f"Found cached cookies for {url}")
+        async def extractor(context, page, status):
+            return await self.get_html_content_and_cookies(context, page, status_code=status)
 
-        async with _browser_semaphore():
-            context = None
-            try:
-                context, page = await self.setup_browser(proxy, user_agent=cached_ua)
-
-                if cached_cookies:
-                    self.log_message("Restoring cached cookies...")
-                    cookie_list = [{"name": name, "value": value, "url": url} for name, value in cached_cookies.items()]
-                    await context.add_cookies(cookie_list)
-
-                success, cf_detected, status = await self.solve_cloudflare_challenge(url, page)
-                if success:
-                    data = await self.get_html_content_and_cookies(context, page, status_code=status)
-                    if data and self._is_trustworthy(data["cookies"], cf_detected):
-                        self.cookie_cache.set(key, data["cookies"], data["user_agent"])
-                        return data
-                    if data:
-                        self.log_message("CF detected but no cf_clearance cookie -- not caching")
-                return None
-            except Exception as e:
-                self.log_message(f"Error in get_or_generate_html: {e}")
-                return None
-            finally:
-                await self.cleanup_browser(context)
+        return await self._run_in_browser(url, proxy, key, restore_cookies=not bypass_cache, extractor=extractor)
 
     async def cleanup_browser(self, context) -> None:
         """Close the context (and its underlying browser). Never raises; never leaks."""
@@ -364,7 +356,7 @@ class CloakBypasser:
             try:
                 # shield+timeout so a hung close (or outer cancellation) can't
                 # leave the browser process running or block us forever
-                await asyncio.wait_for(asyncio.shield(context.close()), timeout=30)
+                await asyncio.wait_for(asyncio.shield(context.close()), timeout=CONTEXT_CLOSE_TIMEOUT_SECONDS)
             except Exception as e:
                 self.log_message(f"Error closing context: {e}")
 
