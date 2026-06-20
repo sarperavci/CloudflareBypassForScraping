@@ -1,22 +1,27 @@
 import asyncio
 import logging
+import os
 import traceback
+from collections import OrderedDict
 from typing import Dict, Any, Optional, Tuple
-from urllib.parse import urlparse, urljoin
+from urllib.parse import urlparse
 
 from curl_cffi.requests import AsyncSession
 
 from cf_bypasser.core.bypasser import CloakBypasser
 from cf_bypasser.utils.config import BrowserConfig
-from cf_bypasser.utils.misc import md5_hash
+from cf_bypasser.utils.misc import cache_key
+
+CF_PRIORITY_COOKIES = ('cf_clearance', '__cf_bm', '__cfruid')
 
 
 class RequestMirror:
     """Handles dynamic request mirroring with Cloudflare bypass."""
-    
+
     def __init__(self, bypasser: CloakBypasser = None):
         self.bypasser: CloakBypasser = bypasser or CloakBypasser()
-        self.session_cache: Dict[str, AsyncSession] = {}  # Cache curl-cffi sessions per hostname
+        self.session_cache: "OrderedDict[str, AsyncSession]" = OrderedDict()  # LRU per host:proxy
+        self.max_sessions: int = int(os.environ.get("CF_MAX_SESSIONS", "128"))
         
     def extract_mirror_headers(self, headers: Dict[str, str]) -> Tuple[Optional[str], Optional[str], bool]:
         """Extract x-hostname, x-proxy, and x-bypass-cache from headers."""
@@ -55,9 +60,10 @@ class RequestMirror:
                         name, value = cookie.split('=', 1)
                         incoming_dict[name.strip()] = value.strip()
             
-            # Merge with CF cookies (user cookies take precedence)
-            merged_cookies = {**cf_cookies, **incoming_dict}
-            
+            # CF cookies are authoritative for any name they carry; other client cookies pass through.
+            merged_cookies = dict(incoming_dict)
+            merged_cookies.update(cf_cookies)
+
             cookie_pairs = [f"{name}={value}" for name, value in merged_cookies.items()]
             return '; '.join(cookie_pairs)
         except Exception as e:
@@ -68,29 +74,46 @@ class RequestMirror:
     def build_target_url(self, hostname: str, path: str, query_string: str = None) -> str:
         if not hostname.startswith(('http://', 'https://')):
             hostname = f"https://{hostname}"
-        
-        url = urljoin(hostname, path)
+
+        parsed = urlparse(hostname)
+        base = f"{parsed.scheme}://{parsed.netloc}"
+
+        # Collapse network-path / leading slashes so the client path can't swap the host.
+        safe_path = "/" + (path or "").lstrip("/")
+
+        url = base + safe_path
         if query_string:
             url += f"?{query_string}"
-        
+
         return url
     
     async def get_session(self, hostname: str, proxy: Optional[str] = None) -> AsyncSession:
         session_key = f"{hostname}:{proxy or 'no-proxy'}"
-        
-        if session_key not in self.session_cache:
-            proxy_dict = None
-            if proxy:
-                proxy_dict = {"http": proxy, "https": proxy}
-            
-            session = AsyncSession(
-                impersonate="chrome",  # match CloakBrowser's Chrome fingerprint
-                proxies=proxy_dict,
-                timeout=30
-            )
-            self.session_cache[session_key] = session
-        
-        return self.session_cache[session_key]
+
+        if session_key in self.session_cache:
+            self.session_cache.move_to_end(session_key)
+            return self.session_cache[session_key]
+
+        proxy_dict = None
+        if proxy:
+            proxy_dict = {"http": proxy, "https": proxy}
+
+        session = AsyncSession(
+            impersonate="chrome",  # match CloakBrowser's Chrome fingerprint
+            proxies=proxy_dict,
+            timeout=30
+        )
+        self.session_cache[session_key] = session
+        self.session_cache.move_to_end(session_key)
+
+        while len(self.session_cache) > self.max_sessions:
+            _, evicted = self.session_cache.popitem(last=False)
+            try:
+                await evicted.close()
+            except Exception as e:
+                logging.error(f"Error closing evicted session: {e}")
+
+        return session
     
     async def mirror_request(
         self,
@@ -119,8 +142,7 @@ class RequestMirror:
                 # If bypass_cache is True, invalidate existing cache first
                 if bypass_cache:
                     parsed_hostname = urlparse(target_url).netloc
-                    cache_key = md5_hash(parsed_hostname + (proxy or ""))
-                    self.bypasser.cookie_cache.invalidate(cache_key)
+                    self.bypasser.cookie_cache.invalidate(cache_key(parsed_hostname, proxy))
 
                 cf_data = await self.bypasser.get_or_generate_cookies(target_url, proxy)
                 
@@ -152,9 +174,7 @@ class RequestMirror:
                 for key, value in browser_headers.items():
                     if key.lower() not in [h.lower() for h in clean_headers.keys()]:
                         clean_headers[key] = value
-                
-                target_url = self.build_target_url(hostname, path, query_string)
-                
+
                 session = await self.get_session(hostname, proxy)
                 
                 response = await session.request(
@@ -173,9 +193,8 @@ class RequestMirror:
                     logging.warning(f"Got 403 Forbidden from {hostname}, invalidating cache and retrying...")
                     
                     parsed_hostname = urlparse(target_url).netloc
-                    cache_key = md5_hash(parsed_hostname + (proxy or ""))
-                    self.bypasser.cookie_cache.invalidate(cache_key)
-                    
+                    self.bypasser.cookie_cache.invalidate(cache_key(parsed_hostname, proxy))
+
                     await asyncio.sleep(.5)
                     continue
                 
@@ -193,6 +212,9 @@ class RequestMirror:
                 logging.info(f"Request to {hostname} completed with status {status_code}")
                 return status_code, final_headers, response_content
                 
+            except (KeyError, TypeError, ValueError):
+                # Deterministic programming errors — retrying won't help.
+                raise
             except Exception as e:
                 if attempt < max_retries:
                     logging.warning(f"Request attempt {attempt + 1} failed: {e}, retrying...")

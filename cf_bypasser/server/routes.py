@@ -1,5 +1,6 @@
+import ipaddress
 import logging
-import re
+import socket
 import time
 from contextlib import asynccontextmanager
 from typing import Optional, AsyncGenerator
@@ -53,18 +54,66 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     logger.info("Server shutdown complete")
 
 
+def _ip_is_blocked(ip: ipaddress._BaseAddress) -> bool:
+    """True if the IP is loopback/private/link-local/etc and must be rejected."""
+    if isinstance(ip, ipaddress.IPv6Address) and ip.ipv4_mapped is not None:
+        ip = ip.ipv4_mapped
+    return (
+        ip.is_loopback
+        or ip.is_private
+        or ip.is_link_local
+        or ip.is_multicast
+        or ip.is_reserved
+        or ip.is_unspecified
+    )
+
+
+def _parse_ip_literal(host: str) -> Optional[ipaddress._BaseAddress]:
+    """Parse host as an IP literal (dotted, integer, hex, octal); None if not an IP."""
+    h = host.strip("[]")
+    try:
+        return ipaddress.ip_address(h)
+    except ValueError:
+        pass
+    # integer (2130706433), hex (0x7f000001), octal-ish dotted forms (0177.0.0.1)
+    try:
+        return ipaddress.ip_address(int(h, 0))
+    except (ValueError, OverflowError):
+        pass
+    try:
+        packed = socket.inet_aton(h)
+        return ipaddress.ip_address(packed)
+    except OSError:
+        return None
+
+
 def is_safe_url(url: str) -> bool:
-    """Check if the URL is safe (not localhost/private)."""
+    """Check if the URL is safe (not localhost/private/internal); fails closed."""
     try:
         parsed_url = urlparse(url)
-        ip_pattern = re.compile(
-            r"^(127\.0\.0\.1|localhost|0\.0\.0\.0|::1|10\.\d+\.\d+\.\d+|172\.1[6-9]\.\d+\.\d+|172\.2[0-9]\.\d+\.\d+|172\.3[0-1]\.\d+\.\d+|192\.168\.\d+\.\d+)$"
-        )
-        hostname = parsed_url.hostname
-        if (hostname and ip_pattern.match(hostname)) or parsed_url.scheme == "file":
+        if parsed_url.scheme == "file":
             return False
+        hostname = parsed_url.hostname
+        if not hostname:
+            return False
+
+        ip_literal = _parse_ip_literal(hostname)
+        if ip_literal is not None:
+            return not _ip_is_blocked(ip_literal)
+
+        infos = socket.getaddrinfo(hostname, None)
+        if not infos:
+            return False
+        for info in infos:
+            addr = info[4][0]
+            try:
+                ip = ipaddress.ip_address(addr)
+            except ValueError:
+                return False
+            if _ip_is_blocked(ip):
+                return False
         return True
-    except:
+    except Exception:
         return False
 
 
@@ -133,7 +182,7 @@ def setup_routes(app: FastAPI):
             raise
         except Exception as e:
             logger.error(f"Error getting cookies for {url}: {e}")
-            raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+            raise HTTPException(status_code=500, detail="Internal server error")
 
     @app.get("/html", responses={400: {"model": ErrorResponse}, 500: {"model": ErrorResponse}})
     async def get_html(
@@ -202,8 +251,8 @@ def setup_routes(app: FastAPI):
         except HTTPException:
             raise
         except Exception as e:
-            logger.info(f"Error getting HTML content for {url}: {e}")
-            raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+            logger.error(f"Error getting HTML content for {url}: {e}")
+            raise HTTPException(status_code=500, detail="Internal server error")
 
     @app.post("/cache/clear", response_model=CacheClearResponse, responses={500: {"model": ErrorResponse}})
     async def clear_cache():
@@ -230,7 +279,7 @@ def setup_routes(app: FastAPI):
             )
         except Exception as e:
             logger.error(f"Error clearing cache: {e}")
-            raise HTTPException(status_code=500, detail=f"Failed to clear cache: {str(e)}")
+            raise HTTPException(status_code=500, detail="Internal server error")
 
     @app.get("/cache/stats", response_model=CacheStatsResponse, responses={500: {"model": ErrorResponse}})
     async def cache_stats():
@@ -258,7 +307,7 @@ def setup_routes(app: FastAPI):
             )
         except Exception as e:
             logger.error(f"Error getting cache stats: {e}")
-            raise HTTPException(status_code=500, detail=f"Failed to get cache stats: {str(e)}")
+            raise HTTPException(status_code=500, detail="Internal server error")
 
     @app.api_route("/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"])
     async def mirror_request(request: Request, path: str = ""):
@@ -365,4 +414,4 @@ def setup_routes(app: FastAPI):
             raise
         except Exception as e:
             logger.error(f"Error mirroring request: {e}")
-            raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+            raise HTTPException(status_code=500, detail="Internal server error")

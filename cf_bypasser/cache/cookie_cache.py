@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+import tempfile
 import threading
 from datetime import datetime, timedelta
 from dataclasses import dataclass
@@ -61,11 +62,20 @@ class CookieCache:
             logging.warning(f"Failed to load cache file: {e}")
     
     def _save_cache(self):
+        data = {hostname: cached.to_dict() for hostname, cached in self.cache.items()}
+        directory = os.path.dirname(os.path.abspath(self.cache_file))
+        fd, tmp_path = tempfile.mkstemp(dir=directory, prefix=".cf_cache.", suffix=".tmp")
         try:
-            with open(self.cache_file, 'w') as f:
-                data = {hostname: cached.to_dict() for hostname, cached in self.cache.items()}
+            with os.fdopen(fd, 'w') as f:
                 json.dump(data, f, indent=2)
+                f.flush()
+                os.fsync(f.fileno())
+            os.replace(tmp_path, self.cache_file)  # atomic on POSIX
         except Exception as e:
+            try:
+                os.remove(tmp_path)
+            except OSError:
+                pass
             logging.error(f"Failed to save cache file: {e}")
     
     def get(self, hostname: str) -> Optional[CachedCookies]:

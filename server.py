@@ -4,8 +4,6 @@ import argparse
 import logging
 import uvicorn
 
-from cf_bypasser.server.app import create_app
-
 
 def main():
     """Main entry point."""
@@ -20,12 +18,12 @@ def main():
     logging.getLogger().setLevel(getattr(logging, args.log_level.upper()))
     
     logger = logging.getLogger(__name__)
-    logger.info(f"Starting server on {args.host}:{args.port}")    
+    logger.info(f"Starting server on {args.host}:{args.port}")
 
-    app = create_app()
-    
+    # factory import-string so >1 worker can fork; cookie cache is per-worker
     uvicorn.run(
-        app,
+        "cf_bypasser.server.app:create_app",
+        factory=True,
         host=args.host,
         port=args.port,
         workers=args.workers,

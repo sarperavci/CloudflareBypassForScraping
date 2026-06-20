@@ -9,8 +9,41 @@ os.environ.setdefault("CLOAKBROWSER_AUTO_UPDATE", "false")
 
 import cloakbrowser as cb
 
-from cf_bypasser.utils.misc import md5_hash, get_browser_init_lock
+from cf_bypasser.utils.misc import cache_key, get_browser_init_lock, md5_hash
 from cf_bypasser.cache.cookie_cache import CookieCache
+
+DEFAULT_TIMEOUT_MS = 30000
+
+_MAX_CONCURRENT_BROWSERS = int(os.environ.get("CF_MAX_CONCURRENT_BROWSERS", "4"))
+
+# One semaphore + one in-flight lock registry per event loop (multi-loop pytest safe).
+_browser_semaphores: dict = {}
+_inflight_locks: dict = {}
+
+
+def _browser_semaphore() -> asyncio.Semaphore:
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        loop = None
+    sem = _browser_semaphores.get(loop)
+    if sem is None:
+        sem = asyncio.Semaphore(_MAX_CONCURRENT_BROWSERS)
+        _browser_semaphores[loop] = sem
+    return sem
+
+
+def _inflight_lock(key: str) -> asyncio.Lock:
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        loop = None
+    registry = _inflight_locks.setdefault(loop, {})
+    lock = registry.get(key)
+    if lock is None:
+        lock = asyncio.Lock()
+        registry[key] = lock
+    return lock
 
 # Native closed-shadow-root access via the patched Chromium — lets us read and
 # click the Cloudflare Turnstile checkbox without injecting attachShadow patches.
@@ -75,12 +108,13 @@ class CloakBypasser:
             if proxy_config:
                 self.log_message(f"Using proxy: {proxy_config['server']}")
             else:
-                self.log_message("Failed to parse proxy, continuing without proxy")
+                # never silently fall back to direct: that leaks the real IP
+                raise ValueError(f"Invalid proxy, refusing to continue direct: {proxy}")
 
         launch_kwargs = dict(
             headless=headless,
             args=[FAKE_SHADOW_ARG],
-            geoip=bool(proxy),
+            geoip=bool(proxy_config),
             locale=lang if lang else None,
         )
         if proxy_config:
@@ -94,6 +128,8 @@ class CloakBypasser:
             async with get_browser_init_lock():
                 context = await cb.launch_context_async(**launch_kwargs)
             page = context.pages[0] if context.pages else await context.new_page()
+            page.set_default_timeout(DEFAULT_TIMEOUT_MS)
+            page.set_default_navigation_timeout(DEFAULT_TIMEOUT_MS)
             return context, page
         except BaseException:
             # a partial launch must never orphan a browser process,
@@ -101,14 +137,25 @@ class CloakBypasser:
             await self.cleanup_browser(context)
             raise
 
+    # block-specific phrases; "cloudflare ray id" alone is NOT enough (legit footers have it)
+    _BLOCK_MARKERS = (
+        "you have been blocked",
+        "sorry, you have been blocked",
+        "error 1020",
+        "access denied",
+    )
+
     async def is_bypassed(self, page) -> bool:
-        """Check if the Cloudflare challenge has been cleared."""
+        """Check if the Cloudflare challenge has been cleared (and not a block page)."""
         try:
             title = await page.title()
             if "just a moment" in title.lower():
                 return False
             html_content = await page.content()
-            if "please complete the captcha" in html_content.lower():
+            lowered = html_content.lower()
+            if "please complete the captcha" in lowered:
+                return False
+            if any(marker in lowered for marker in self._BLOCK_MARKERS):
                 return False
             return True
         except Exception as e:
@@ -129,18 +176,26 @@ class CloakBypasser:
                     continue
                 # checkbox coords are iframe-relative; offset by the iframe's page position
                 await page.mouse.click(box["x"] + info["x"], box["y"] + info["y"])
-                self.log_message("Clicked Turnstile checkbox via fakeShadowRoot")
-                return True
+                # only count it as clicked if the box became checked or disappeared
+                after = await frame.evaluate(_FIND_CHECKBOX_JS)
+                if (not after.get("found")) or after.get("checked"):
+                    self.log_message("Clicked Turnstile checkbox via fakeShadowRoot")
+                    return True
+                self.log_message("Turnstile checkbox click did not register, retrying")
             except Exception as e:
                 self.log_message(f"Checkbox click attempt failed: {e}")
         return False
 
-    async def solve_cloudflare_challenge(self, url: str, page) -> bool:
-        """Navigate to URL and clear any Cloudflare challenge."""
+    async def solve_cloudflare_challenge(self, url: str, page) -> tuple:
+        """Navigate to URL and clear any Cloudflare challenge. Returns (success, cf_detected, status)."""
+        cf_detected = False
+        status = 200
         try:
             self.log_message(f"Navigating to {url}")
             try:
-                await page.goto(url, wait_until="domcontentloaded", timeout=30000)
+                response = await page.goto(url, wait_until="domcontentloaded", timeout=DEFAULT_TIMEOUT_MS)
+                if response is not None and getattr(response, "status", None):
+                    status = response.status
             except Exception as nav_err:
                 self.log_message(f"Navigation warning: {nav_err}")
 
@@ -148,23 +203,32 @@ class CloakBypasser:
             await asyncio.sleep(5)
             try:
                 html_content = await page.content()
+                content_ok = True
             except Exception:
                 html_content = ""
+                content_ok = False
+
+            if not content_ok:
+                # a failed read tells us nothing; never claim success on empty content
+                self.log_message("Could not read page content -- treating as unconfirmed")
+                bypassed = await self.is_bypassed(page)
+                return bypassed, cf_detected, status
 
             if "cloudflare" not in html_content.lower():
                 self.log_message("No Cloudflare protection detected -- either not protected or already bypassed")
-                return True
+                return True, cf_detected, status
 
+            cf_detected = True
             if await self.is_bypassed(page):
                 self.log_message("No Cloudflare challenge detected or already bypassed")
-                return True
+                return True, cf_detected, status
 
             self.log_message("Cloudflare challenge detected. Waiting for resolution...")
             clicked = False
             for _ in range(self.max_retries):
                 if await self.is_bypassed(page):
                     self.log_message("Cloudflare challenge solved successfully!")
-                    return True
+                    return True, cf_detected, status
                 # non-interactive challenges auto-resolve; interactive ones need one click
                 if not clicked:
                     clicked = await self._click_turnstile_checkbox(page)
@@ -172,14 +236,14 @@ class CloakBypasser:
 
             if await self.is_bypassed(page):
                 self.log_message("Cloudflare challenge solved successfully!")
-                return True
+                return True, cf_detected, status
 
             self.log_message("Failed to solve Cloudflare challenge")
-            return False
+            return False, cf_detected, status
 
         except Exception as e:
             self.log_message(f"Error solving Cloudflare challenge: {e}")
-            return False
+            return False, cf_detected, status
 
     async def get_cookies_and_user_agent(self, context, page) -> Optional[Dict[str, Any]]:
         try:
@@ -191,7 +255,7 @@ class CloakBypasser:
             self.log_message(f"Error getting cookies and user agent: {e}")
             return None
 
-    async def get_html_content_and_cookies(self, context, page) -> Optional[Dict[str, Any]]:
+    async def get_html_content_and_cookies(self, context, page, status_code: int = 200) -> Optional[Dict[str, Any]]:
         try:
             cookies = await context.cookies()
             cookie_dict = {c["name"]: c["value"] for c in cookies}
@@ -201,75 +265,98 @@ class CloakBypasser:
                 "user_agent": user_agent,
                 "html": await page.content(),
                 "url": page.url,
-                "status_code": 200,
+                "status_code": status_code,
             }
         except Exception as e:
             self.log_message(f"Error getting HTML content and cookies: {e}")
             return None
 
+    @staticmethod
+    def _is_trustworthy(cookies: Dict[str, str], cf_detected: bool) -> bool:
+        """A CF-detected result is only trustworthy once a cf_clearance cookie exists."""
+        if not cf_detected:
+            return True
+        return bool(cookies.get("cf_clearance"))
+
     async def get_or_generate_cookies(self, url: str, proxy: Optional[str] = None) -> Optional[Dict[str, Any]]:
         """Get cached cookies or generate new ones."""
         hostname = urlparse(url).netloc
-        cache_key = md5_hash(hostname + (proxy or ""))
+        key = cache_key(hostname, proxy)
 
-        cached = self.cookie_cache.get(cache_key)
+        cached = self.cookie_cache.get(key)
         if cached:
             return {"cookies": cached.cookies, "user_agent": cached.user_agent}
 
-        self.log_message(f"No cached cookies for {cache_key}, generating new ones...")
+        async with _inflight_lock(key):
+            # another waiter may have populated the cache while we queued
+            cached = self.cookie_cache.get(key)
+            if cached:
+                return {"cookies": cached.cookies, "user_agent": cached.user_agent}
 
-        context = None
-        try:
-            context, page = await self.setup_browser(proxy)
+            self.log_message(f"No cached cookies for {key}, generating new ones...")
 
-            if await self.solve_cloudflare_challenge(url, page):
-                data = await self.get_cookies_and_user_agent(context, page)
-                if data:
-                    self.cookie_cache.set(cache_key, data["cookies"], data["user_agent"])
-                    return data
-            return None
-        except Exception as e:
-            self.log_message(f"Error in get_or_generate_cookies: {e}")
-            return None
-        finally:
-            await self.cleanup_browser(context)
+            async with _browser_semaphore():
+                context = None
+                try:
+                    context, page = await self.setup_browser(proxy)
+
+                    success, cf_detected, _ = await self.solve_cloudflare_challenge(url, page)
+                    if success:
+                        data = await self.get_cookies_and_user_agent(context, page)
+                        if data and self._is_trustworthy(data["cookies"], cf_detected):
+                            self.cookie_cache.set(key, data["cookies"], data["user_agent"])
+                            return data
+                        if data:
+                            self.log_message("CF detected but no cf_clearance cookie -- not caching")
+                    return None
+                except Exception as e:
+                    self.log_message(f"Error in get_or_generate_cookies: {e}")
+                    return None
+                finally:
+                    await self.cleanup_browser(context)
 
     async def get_or_generate_html(self, url: str, proxy: Optional[str] = None, bypass_cache: bool = False) -> Optional[Dict[str, Any]]:
         """Get HTML content along with cookies (cached or fresh)."""
         hostname = urlparse(url).netloc
-        cache_key = md5_hash(hostname + (proxy or ""))
+        key = cache_key(hostname, proxy)
 
         self.log_message(f"Getting HTML content for {url}...")
 
+        # No in-flight lock here: HTML must be fetched fresh per request, so concurrent
+        # requests run in parallel (bounded by the semaphore) rather than serializing.
         cached_cookies = None
         cached_ua = None
         if not bypass_cache:
-            cached = self.cookie_cache.get(cache_key)
+            cached = self.cookie_cache.get(key)
             if cached:
                 cached_cookies = cached.cookies
                 cached_ua = cached.user_agent
                 self.log_message(f"Found cached cookies for {url}")
 
-        context = None
-        try:
-            context, page = await self.setup_browser(proxy, user_agent=cached_ua)
+        async with _browser_semaphore():
+            context = None
+            try:
+                context, page = await self.setup_browser(proxy, user_agent=cached_ua)
 
-            if cached_cookies:
-                self.log_message("Restoring cached cookies...")
-                cookie_list = [{"name": name, "value": value, "url": url} for name, value in cached_cookies.items()]
-                await context.add_cookies(cookie_list)
+                if cached_cookies:
+                    self.log_message("Restoring cached cookies...")
+                    cookie_list = [{"name": name, "value": value, "url": url} for name, value in cached_cookies.items()]
+                    await context.add_cookies(cookie_list)
 
-            if await self.solve_cloudflare_challenge(url, page):
-                data = await self.get_html_content_and_cookies(context, page)
-                if data:
-                    self.cookie_cache.set(cache_key, data["cookies"], data["user_agent"])
-                    return data
-            return None
-        except Exception as e:
-            self.log_message(f"Error in get_or_generate_html: {e}")
-            return None
-        finally:
-            await self.cleanup_browser(context)
+                success, cf_detected, status = await self.solve_cloudflare_challenge(url, page)
+                if success:
+                    data = await self.get_html_content_and_cookies(context, page, status_code=status)
+                    if data and self._is_trustworthy(data["cookies"], cf_detected):
+                        self.cookie_cache.set(key, data["cookies"], data["user_agent"])
+                        return data
+                    if data:
+                        self.log_message("CF detected but no cf_clearance cookie -- not caching")
+                return None
+            except Exception as e:
+                self.log_message(f"Error in get_or_generate_html: {e}")
+                return None
+            finally:
+                await self.cleanup_browser(context)
 
     async def cleanup_browser(self, context) -> None:
         """Close the context (and its underlying browser). Never raises; never leaks."""
