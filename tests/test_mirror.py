@@ -2,11 +2,7 @@ import pytest
 import asyncio
 import httpx
 
-
-@pytest.fixture
-def server_url():
-    """Provide the server URL for testing."""
-    return "http://localhost:8000"
+pytestmark = pytest.mark.live
 
 
 @pytest.mark.asyncio
@@ -18,10 +14,10 @@ async def test_mirror_get_request(server_url, expected_text):
             headers={"x-hostname": "challenge.sarper.me"},
             timeout=60.0
         )
-        
+
         assert response.status_code == 200, f"Request failed with status {response.status_code}"
         html_content = response.text
-        assert expected_text in html_content, f"Success text not found in response"
+        assert expected_text in html_content, "Success text not found in response"
         assert "x-cf-bypasser-version" in response.headers, "Missing x-cf-bypasser-version header"
         assert "x-processing-time-ms" in response.headers, "Missing x-processing-time-ms header"
 
@@ -35,7 +31,7 @@ async def test_mirror_get_with_path(server_url):
             headers={"x-hostname": "challenge.sarper.me"},
             timeout=60.0
         )
-        
+
         assert response.status_code in [200, 404], f"Unexpected status: {response.status_code}"
 
 
@@ -56,7 +52,7 @@ async def test_mirror_invalid_hostname(server_url):
             headers={"x-hostname": "localhost"},
             timeout=10.0
         )
-        
+
         assert response.status_code == 400, "Should reject localhost hostnames"
 
 
@@ -69,13 +65,14 @@ async def test_mirror_with_query_params(server_url):
             headers={"x-hostname": "challenge.sarper.me"},
             timeout=60.0
         )
-        
+
         assert response.status_code == 200, f"Request failed with status {response.status_code}"
 
 
+@pytest.mark.parametrize("n", [3, 6])
 @pytest.mark.asyncio
-async def test_mirror_parallel_requests_3(server_url, expected_text):
-    """Test 3 parallel mirror requests."""
+async def test_mirror_parallel_requests(server_url, expected_text, n):
+    """Test N parallel mirror requests."""
     async with httpx.AsyncClient() as client:
         tasks = [
             client.get(
@@ -83,48 +80,15 @@ async def test_mirror_parallel_requests_3(server_url, expected_text):
                 headers={"x-hostname": "challenge.sarper.me"},
                 timeout=60.0
             )
-            for _ in range(3)
+            for _ in range(n)
         ]
-        
-        responses = await asyncio.gather(*tasks, return_exceptions=True)
-        
-        successful = 0
-        for i, response in enumerate(responses, 1):
-            if isinstance(response, Exception):
-                print(f"Request {i} failed: {response}")
-            else:
-                assert response.status_code == 200, f"Request {i} failed with status {response.status_code}"
-                assert expected_text in response.text, f"Request {i} - success text not found"
-                successful += 1
-        
-        assert successful == 3, f"Only {successful}/3 requests succeeded"
 
-
-@pytest.mark.asyncio
-async def test_mirror_parallel_requests_6(server_url, expected_text):
-    """Test 6 parallel mirror requests."""
-    async with httpx.AsyncClient() as client:
-        tasks = [
-            client.get(
-                f"{server_url}/",
-                headers={"x-hostname": "challenge.sarper.me"},
-                timeout=60.0
-            )
-            for _ in range(6)
-        ]
-        
         responses = await asyncio.gather(*tasks, return_exceptions=True)
-        
-        successful = 0
+
         for i, response in enumerate(responses, 1):
-            if isinstance(response, Exception):
-                print(f"Request {i} failed: {response}")
-            else:
-                assert response.status_code == 200, f"Request {i} failed with status {response.status_code}"
-                assert expected_text in response.text, f"Request {i} - success text not found"
-                successful += 1
-        
-        assert successful == 6, f"Only {successful}/6 requests succeeded"
+            assert not isinstance(response, Exception), f"Request {i} failed: {response!r}"
+            assert response.status_code == 200, f"Request {i} failed with status {response.status_code}"
+            assert expected_text in response.text, f"Request {i} - success text not found"
 
 
 @pytest.mark.asyncio
@@ -136,14 +100,14 @@ async def test_mirror_different_methods(server_url):
             headers={"x-hostname": "challenge.sarper.me"},
             timeout=60.0
         )
-        
+
         response_post = await client.post(
             f"{server_url}/api/test",
             headers={"x-hostname": "challenge.sarper.me"},
             json={"test": "data"},
             timeout=60.0
         )
-        
+
         assert response_get.status_code in [200, 404, 405], "GET failed"
         assert response_post.status_code in [200, 404, 405], "POST failed"
 
@@ -162,7 +126,7 @@ async def test_mirror_custom_headers(server_url, expected_text):
             },
             timeout=60.0
         )
-        
+
         assert response.status_code == 200, f"Request failed with status {response.status_code}"
         assert expected_text in response.text, "Success text not found"
 
@@ -177,7 +141,7 @@ async def test_mirror_cache_header(server_url, expected_text):
             timeout=60.0
         )
         assert response1.status_code == 200, "First request failed"
-        
+
         response2 = await client.get(
             f"{server_url}/",
             headers={

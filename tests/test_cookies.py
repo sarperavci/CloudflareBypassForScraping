@@ -1,9 +1,11 @@
 import pytest
 import asyncio
 
+pytestmark = pytest.mark.live
+
 
 @pytest.mark.asyncio
-async def test_single_cookie_generation(shared_cookies):
+async def test_single_cookie_generation(shared_cookies, cf_cookie_prefixes):
     """Test basic cookie generation for a single request."""
     result = shared_cookies
 
@@ -14,7 +16,7 @@ async def test_single_cookie_generation(shared_cookies):
     cookies = result["cookies"]
     assert len(cookies) > 0, "No cookies generated"
 
-    cf_cookies = [name for name in cookies.keys() if name.startswith(('cf_', '__cf'))]
+    cf_cookies = [name for name in cookies.keys() if name.startswith(cf_cookie_prefixes)]
     assert len(cf_cookies) > 0, f"No Cloudflare cookies found. Got: {list(cookies.keys())}"
 
     user_agent = result["user_agent"]
@@ -48,19 +50,14 @@ async def test_cookie_validation(shared_cookies):
         assert isinstance(value, str), f"Cookie value for '{name}' is not a string"
 
 
+@pytest.mark.parametrize("n", [3])
 @pytest.mark.asyncio
-async def test_parallel_cookie_generation_3(bypasser, test_url):
+async def test_parallel_cookie_generation(bypasser, test_url, n):
     """Concurrent cookie requests all succeed (in-flight dedup + cache)."""
-    tasks = [bypasser.get_or_generate_cookies(test_url) for _ in range(3)]
+    tasks = [bypasser.get_or_generate_cookies(test_url) for _ in range(n)]
     results = await asyncio.gather(*tasks, return_exceptions=True)
 
-    successful = 0
     for i, result in enumerate(results, 1):
-        if isinstance(result, Exception):
-            print(f"Request {i} failed: {result}")
-        else:
-            assert result is not None, f"Request {i} returned None"
-            assert len(result["cookies"]) > 0, f"Request {i} has no cookies"
-            successful += 1
-
-    assert successful == 3, f"Only {successful}/3 requests succeeded"
+        assert not isinstance(result, Exception), f"Request {i} failed: {result!r}"
+        assert result is not None, f"Request {i} returned None"
+        assert len(result["cookies"]) > 0, f"Request {i} has no cookies"

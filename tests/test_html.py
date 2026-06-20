@@ -1,9 +1,11 @@
 import pytest
 import asyncio
 
+pytestmark = pytest.mark.live
+
 
 @pytest.mark.asyncio
-async def test_single_html_retrieval(shared_html, test_url, expected_text):
+async def test_single_html_retrieval(shared_html, test_url, expected_text, cf_cookie_prefixes, min_html_length):
     """Test basic HTML content retrieval."""
     result = shared_html
 
@@ -15,13 +17,13 @@ async def test_single_html_retrieval(shared_html, test_url, expected_text):
 
     html_content = result["html"]
     assert html_content, "HTML content is empty"
-    assert len(html_content) > 50, f"HTML content too short: {len(html_content)} chars"
+    assert len(html_content) > min_html_length, f"HTML content too short: {len(html_content)} chars"
     assert expected_text in html_content, f"Expected text '{expected_text}' not found in HTML"
 
     cookies = result["cookies"]
     assert len(cookies) > 0, "No cookies in result"
 
-    cf_cookies = [name for name in cookies.keys() if name.startswith(('cf_', '__cf'))]
+    cf_cookies = [name for name in cookies.keys() if name.startswith(cf_cookie_prefixes)]
     assert len(cf_cookies) > 0, "No Cloudflare cookies found"
 
     user_agent = result["user_agent"]
@@ -42,22 +44,17 @@ async def test_html_content_validation(shared_html, expected_text):
     assert expected_text in html_content, "Success text not found in HTML"
 
 
+@pytest.mark.parametrize("n", [3])
 @pytest.mark.asyncio
-async def test_parallel_html_retrieval_3(bypasser, test_url, expected_text):
-    """The live concurrency test: 3 concurrent HTML fetches run in parallel (semaphore-bounded)."""
-    tasks = [bypasser.get_or_generate_html(test_url) for _ in range(3)]
+async def test_parallel_html_retrieval(bypasser, test_url, expected_text, n):
+    """The live concurrency test: concurrent HTML fetches run in parallel (semaphore-bounded)."""
+    tasks = [bypasser.get_or_generate_html(test_url) for _ in range(n)]
     results = await asyncio.gather(*tasks, return_exceptions=True)
 
-    successful = 0
     for i, result in enumerate(results, 1):
-        if isinstance(result, Exception):
-            print(f"Request {i} failed: {result}")
-        else:
-            assert result is not None, f"Request {i} returned None"
-            assert expected_text in result["html"], f"Request {i} - success text not found"
-            successful += 1
-
-    assert successful == 3, f"Only {successful}/3 requests succeeded"
+        assert not isinstance(result, Exception), f"Request {i} failed: {result!r}"
+        assert result is not None, f"Request {i} returned None"
+        assert expected_text in result["html"], f"Request {i} - success text not found"
 
 
 @pytest.mark.asyncio

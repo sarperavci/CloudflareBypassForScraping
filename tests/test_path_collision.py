@@ -1,14 +1,5 @@
 import pytest
-from fastapi.testclient import TestClient
 from unittest.mock import AsyncMock, patch, MagicMock
-
-
-@pytest.fixture
-def client():
-    """Create a test client for the FastAPI server."""
-    from cf_bypasser.server.app import create_app
-    app = create_app()
-    return TestClient(app)
 
 
 @pytest.fixture

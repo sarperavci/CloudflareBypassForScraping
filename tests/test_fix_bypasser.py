@@ -1,5 +1,4 @@
 import asyncio
-import os
 
 import pytest
 
@@ -186,7 +185,6 @@ async def test_concurrency_capped(tmp_path, monkeypatch):
 
     class TrackingContext(FakeContext):
         async def cookies(self_inner):
-            nonlocal live, peak
             await asyncio.sleep(0.05)
             return self_inner._cookies
 
@@ -262,7 +260,6 @@ async def test_geoip_flag(tmp_path, monkeypatch):
 @pytest.mark.asyncio
 async def test_proxy_parse_failure_raises(tmp_path, monkeypatch):
     b = make_bypasser(tmp_path)
-    ctx = FakeContext(FakePage())
     monkeypatch.setattr(bp.cb, "launch_context_async",
                         lambda **k: (_ for _ in ()).throw(AssertionError("must not launch")))
     with pytest.raises(ValueError):

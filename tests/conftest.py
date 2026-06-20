@@ -1,19 +1,12 @@
 import pytest
-import asyncio
-from typing import AsyncGenerator
+import pytest_asyncio
+from fastapi.testclient import TestClient
 
-# Test configuration
 TEST_URL = "https://challenge.sarper.me"
 EXPECTED_SUCCESS_TEXT = "cloudflare challenged passed. You are now a free bot."
-TEST_TIMEOUT = 60  # seconds per test
-
-
-@pytest.fixture(scope="session")
-def event_loop():
-    """Create an instance of the default event loop for the test session."""
-    loop = asyncio.get_event_loop_policy().new_event_loop()
-    yield loop
-    loop.close()
+SERVER_URL = "http://localhost:8000"
+CF_COOKIE_PREFIXES = ("cf_", "__cf")
+MIN_HTML_LENGTH = 50
 
 
 @pytest.fixture
@@ -29,30 +22,57 @@ def expected_text():
 
 
 @pytest.fixture
+def server_url():
+    """Provide the running server URL for live/network tests."""
+    return SERVER_URL
+
+
+@pytest.fixture
+def cf_cookie_prefixes():
+    """Cookie-name prefixes that mark a Cloudflare clearance cookie."""
+    return CF_COOKIE_PREFIXES
+
+
+@pytest.fixture
+def min_html_length():
+    """Minimum plausible length for a real bypassed HTML body."""
+    return MIN_HTML_LENGTH
+
+
+@pytest.fixture
+def client():
+    """FastAPI TestClient against a freshly created app (runs lifespan so the singletons exist)."""
+    from cf_bypasser.server.app import create_app
+    with TestClient(create_app()) as c:
+        yield c
+
+
+@pytest_asyncio.fixture
 async def bypasser():
     """Create a CloakBypasser instance for testing."""
     from cf_bypasser.core.bypasser import CloakBypasser
     instance = CloakBypasser(max_retries=5, log=True)
     yield instance
-    # Cleanup is handled per-request now, but just in case
     await instance.cleanup()
 
 
-# Memoized once per test process so the whole suite shares a single real
-# cookie-gen and a single real HTML fetch instead of a browser launch per test.
-# Cookie generation also reuses the on-disk cookie cache across test files.
-_SHARED: dict = {}
+# One real cookie-gen / HTML fetch shared across the whole session so the live
+# suite launches a browser once instead of per test.
+@pytest_asyncio.fixture(scope="session", loop_scope="session")
+async def shared_cookies():
+    from cf_bypasser.core.bypasser import CloakBypasser
+    instance = CloakBypasser(max_retries=5, log=True)
+    try:
+        return await instance.get_or_generate_cookies(TEST_URL)
+    finally:
+        await instance.cleanup()
 
 
-@pytest.fixture
-async def shared_cookies(bypasser, test_url):
-    if "cookies" not in _SHARED:
-        _SHARED["cookies"] = await bypasser.get_or_generate_cookies(test_url)
-    return _SHARED["cookies"]
-
-
-@pytest.fixture
-async def shared_html(bypasser, test_url):
-    if "html" not in _SHARED:
-        _SHARED["html"] = await bypasser.get_or_generate_html(test_url)
-    return _SHARED["html"]
+@pytest_asyncio.fixture(scope="session", loop_scope="session")
+async def shared_html():
+    from cf_bypasser.core.bypasser import CloakBypasser
+    instance = CloakBypasser(max_retries=5, log=True)
+    try:
+        return await instance.get_or_generate_html(TEST_URL)
+    finally:
+        await instance.cleanup()

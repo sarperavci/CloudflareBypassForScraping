@@ -1,8 +1,5 @@
 import glob
 import json
-import os
-
-import pytest
 
 from cf_bypasser.cache.cookie_cache import CookieCache
 
