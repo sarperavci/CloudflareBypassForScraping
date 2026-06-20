@@ -73,6 +73,10 @@ pip install -r server_requirements.txt
 python server.py
 ```
 
+## Configuration
+
+Behavior (cookie cache TTL, proxy exit-IP checking, concurrency limits, etc.) is controlled via environment variables. See **[docs/CONFIGURATION.md](docs/CONFIGURATION.md)** for the full list with defaults.
+
 # Usage
 
 ## Request Mirroring (Any HTTP Method)
