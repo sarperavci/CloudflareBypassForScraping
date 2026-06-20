@@ -178,7 +178,7 @@ def test_keyerror_not_retried(monkeypatch):
     headers = {"x-hostname": "good.com"}
 
     async def run():
-        await m.mirror_request("GET", "/p", "", headers, max_retries=2)
+        await m.mirror_request("GET", "/p", "", headers, hostname="good.com", max_retries=2)
 
     with pytest.raises(KeyError):
         asyncio.run(run())
@@ -204,7 +204,7 @@ def test_runtime_error_is_retried(monkeypatch):
     headers = {"x-hostname": "good.com"}
 
     async def run():
-        await m.mirror_request("GET", "/p", "", headers, max_retries=2)
+        await m.mirror_request("GET", "/p", "", headers, hostname="good.com", max_retries=2)
 
     with pytest.raises(RuntimeError):
         asyncio.run(run())

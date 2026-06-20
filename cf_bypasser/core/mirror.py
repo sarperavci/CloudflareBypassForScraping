@@ -27,23 +27,6 @@ class RequestMirror:
         self.session_cache: "OrderedDict[str, AsyncSession]" = OrderedDict()  # LRU per host:proxy
         self.max_sessions: int = int(os.environ.get("CF_MAX_SESSIONS", str(MAX_SESSIONS)))
 
-    def extract_mirror_headers(self, headers: Dict[str, str]) -> Tuple[Optional[str], Optional[str], bool]:
-        """Extract x-hostname, x-proxy, and x-bypass-cache from headers."""
-        hostname: Optional[str] = None
-        proxy: Optional[str] = None
-        bypass_cache: bool = False
-
-        for key, value in headers.items():
-            key_lower = key.lower()
-            if key_lower == 'x-hostname':
-                hostname = value
-            elif key_lower == 'x-proxy':
-                proxy = value
-            elif key_lower == 'x-bypass-cache':
-                bypass_cache = value.lower() in ('true', '1', 'yes', 'on')
-
-        return hostname, proxy, bypass_cache
-
     def strip_mirror_headers(self, headers: Dict[str, str]) -> Dict[str, str]:
         """Remove x-hostname, x-proxy, and x-bypass-cache headers from request."""
         cleaned_headers = {}
@@ -167,13 +150,14 @@ class RequestMirror:
         method: str,
         path: str,
         query_string: Optional[str] = None,
-        headers: Dict[str, str] = None,
+        headers: Optional[Dict[str, str]] = None,
+        hostname: Optional[str] = None,
+        proxy: Optional[str] = None,
+        bypass_cache: bool = False,
         body: Optional[bytes] = None,
         max_retries: int = MIRROR_MAX_RETRIES
     ) -> Tuple[int, Dict[str, str], bytes]:
-        """Mirror the request to the target hostname with CF bypass."""
-
-        hostname, proxy, bypass_cache = self.extract_mirror_headers(headers)
+        """Mirror the request to the target hostname (parsed by the caller) with CF bypass."""
 
         if not hostname:
             raise ValueError("x-hostname header is required")
@@ -181,8 +165,6 @@ class RequestMirror:
         for attempt in range(max_retries + 1):
             try:
                 logging.info(f"Mirroring {method} request to {hostname}{path} (attempt {attempt + 1}/{max_retries + 1})")
-                if bypass_cache:
-                    logging.info("x-bypass-cache header detected - forcing fresh cookie generation")
 
                 target_url = self.build_target_url(hostname, path, query_string)
 

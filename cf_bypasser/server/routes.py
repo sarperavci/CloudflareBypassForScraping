@@ -2,6 +2,7 @@ import logging
 import time
 from contextlib import asynccontextmanager
 from typing import Optional, AsyncGenerator
+from urllib.parse import urlparse
 
 from fastapi import FastAPI, HTTPException, Request, Response, Query, Depends
 
@@ -252,6 +253,13 @@ def setup_routes(app: FastAPI):
                 elif key_lower == 'x-bypass-cache':
                     bypass_cache = value.lower() in ('true', '1', 'yes', 'on')
 
+            # x-hostname must be a bare host; tolerate a mistaken full URL by stripping it
+            if hostname and "://" in hostname:
+                parsed = urlparse(hostname)
+                corrected = parsed.netloc or parsed.path
+                logger.warning(f"x-hostname should be a bare host, not a URL; using '{corrected}' from '{hostname}'")
+                hostname = corrected
+
             if not hostname:
                 raise HTTPException(
                     status_code=400,
@@ -286,6 +294,9 @@ def setup_routes(app: FastAPI):
                 path=request_path,
                 query_string=query_string,
                 headers=headers,
+                hostname=hostname,
+                proxy=proxy,
+                bypass_cache=bypass_cache,
                 body=body
             )
 

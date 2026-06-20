@@ -22,6 +22,38 @@ def public_dns(monkeypatch):
     monkeypatch.setattr(socket, "getaddrinfo", fake_getaddrinfo("93.184.216.34"))
 
 
+def _client_with_capturing_mirror():
+    """TestClient whose mirror dependency records the args it was handed."""
+    from fastapi.testclient import TestClient
+    from cf_bypasser.server.app import create_app
+    from cf_bypasser.server.routes import get_mirror
+
+    captured = {}
+
+    class FakeMirror:
+        async def mirror_request(self, **kwargs):
+            captured.update(kwargs)
+            return 200, {}, b"ok"
+
+    app = create_app()
+    app.dependency_overrides[get_mirror] = lambda: FakeMirror()
+    return TestClient(app), captured
+
+
+def test_xhostname_full_url_is_normalized():
+    client, captured = _client_with_capturing_mirror()
+    resp = client.get("/foo/bar", headers={"x-hostname": "https://example.com/x"})
+    assert resp.status_code == 200
+    assert captured["hostname"] == "example.com"
+
+
+def test_xhostname_bare_host_unchanged():
+    client, captured = _client_with_capturing_mirror()
+    resp = client.get("/foo", headers={"x-hostname": "example.com"})
+    assert resp.status_code == 200
+    assert captured["hostname"] == "example.com"
+
+
 REPRODUCED_BYPASSES = [
     "https://2130706433",
     "http://0x7f000001",
