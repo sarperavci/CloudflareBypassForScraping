@@ -36,3 +36,23 @@ async def bypasser():
     yield instance
     # Cleanup is handled per-request now, but just in case
     await instance.cleanup()
+
+
+# Memoized once per test process so the whole suite shares a single real
+# cookie-gen and a single real HTML fetch instead of a browser launch per test.
+# Cookie generation also reuses the on-disk cookie cache across test files.
+_SHARED: dict = {}
+
+
+@pytest.fixture
+async def shared_cookies(bypasser, test_url):
+    if "cookies" not in _SHARED:
+        _SHARED["cookies"] = await bypasser.get_or_generate_cookies(test_url)
+    return _SHARED["cookies"]
+
+
+@pytest.fixture
+async def shared_html(bypasser, test_url):
+    if "html" not in _SHARED:
+        _SHARED["html"] = await bypasser.get_or_generate_html(test_url)
+    return _SHARED["html"]
