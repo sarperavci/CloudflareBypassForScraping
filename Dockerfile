@@ -2,6 +2,7 @@ FROM ubuntu:rolling
 
 ENV DEBIAN_FRONTEND=noninteractive
 ENV CLOAKBROWSER_AUTO_UPDATE=false
+ENV PYTHONUNBUFFERED=1
 
 USER root
 RUN apt-get update && apt-get install -y \
@@ -38,6 +39,7 @@ RUN apt-get update && apt-get install -y \
 WORKDIR /app
 COPY . .
 
+RUN chmod +x /app/docker-entrypoint.sh
 RUN chown -R ubuntu:ubuntu /app
 
 USER ubuntu
@@ -51,5 +53,5 @@ RUN pip install --no-cache-dir -r server_requirements.txt
 # Download the patched stealth Chromium into the ubuntu user's cache
 RUN python3 -c "import cloakbrowser; print(cloakbrowser.ensure_binary())"
 
-# Browser must run headed for managed Turnstile; provide a virtual display
-CMD ["xvfb-run", "-a", "--server-args=-screen 0 1920x1080x24", "python3", "server.py"]
+# Browser must run headed for managed Turnstile; the entrypoint provides Xvfb
+CMD ["/app/docker-entrypoint.sh"]
