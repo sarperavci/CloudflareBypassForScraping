@@ -14,6 +14,9 @@ from cf_bypasser.utils.misc import cache_key, get_browser_init_lock, per_loop
 from cf_bypasser.utils.constants import (
     DEFAULT_TIMEOUT_MS,
     CHALLENGE_SETTLE_SECONDS,
+    HTML_SETTLE_POLL_SECONDS,
+    HTML_SETTLE_STABLE_ROUNDS,
+    HTML_SETTLE_MAX_SECONDS,
     RETRY_POLL_SECONDS,
     CONTEXT_CLOSE_TIMEOUT_SECONDS,
     DEFAULT_MAX_RETRIES,
@@ -256,15 +259,46 @@ class CloakBypasser:
             self.log_message(f"Error getting cookies and user agent: {e}")
             return None
 
+    async def _stable_html(self, page) -> str:
+        """Return page.content() once its size stops changing, so JS renders deterministically.
+
+        Polls instead of relying on networkidle (Playwright has no networkidle2 and idle
+        can hang on pages with persistent connections). Bounded by HTML_SETTLE_MAX_SECONDS.
+        """
+        try:
+            await page.wait_for_load_state("load", timeout=DEFAULT_TIMEOUT_MS)
+        except Exception:
+            pass
+
+        html = await page.content()
+        if HTML_SETTLE_STABLE_ROUNDS <= 0 or HTML_SETTLE_POLL_SECONDS <= 0:
+            return html
+
+        deadline = asyncio.get_event_loop().time() + HTML_SETTLE_MAX_SECONDS
+        stable = 0
+        while stable < HTML_SETTLE_STABLE_ROUNDS and asyncio.get_event_loop().time() < deadline:
+            await asyncio.sleep(HTML_SETTLE_POLL_SECONDS)
+            try:
+                current = await page.content()
+            except Exception:
+                break
+            if len(current) == len(html):
+                stable += 1
+            else:
+                stable = 0
+            html = current
+        return html
+
     async def get_html_content_and_cookies(self, context, page, status_code: int = 200) -> Optional[Dict[str, Any]]:
         try:
+            html = await self._stable_html(page)
             cookies = await context.cookies()
             cookie_dict = {c["name"]: c["value"] for c in cookies}
             user_agent = await page.evaluate("navigator.userAgent")
             return {
                 "cookies": cookie_dict,
                 "user_agent": user_agent,
-                "html": await page.content(),
+                "html": html,
                 "url": page.url,
                 "status_code": status_code,
             }

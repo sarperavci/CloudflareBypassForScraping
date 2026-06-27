@@ -17,6 +17,12 @@ CF_COOKIE_PREFIXES = ("cf_", "__cf")
 CF_PRIORITY_COOKIES = ("cf_clearance", "__cf_bm", "__cfruid")
 DEFAULT_TIMEOUT_MS = 30000
 CHALLENGE_SETTLE_SECONDS = 5
+
+# /html DOM-stability poll: sample page.content() until its size stops changing,
+# so JS-rendered pages return a deterministic snapshot instead of a mid-render one.
+HTML_SETTLE_POLL_SECONDS = float(os.environ.get("CF_HTML_SETTLE_POLL", "0.5"))
+HTML_SETTLE_STABLE_ROUNDS = int(os.environ.get("CF_HTML_SETTLE_STABLE_ROUNDS", "2"))
+HTML_SETTLE_MAX_SECONDS = float(os.environ.get("CF_HTML_SETTLE_MAX", "10"))
 RETRY_POLL_SECONDS = 3
 CONTEXT_CLOSE_TIMEOUT_SECONDS = 30
 DEFAULT_MAX_RETRIES = 5
