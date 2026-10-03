@@ -93,6 +93,7 @@ def setup_routes(app: FastAPI):
         url: Optional[str] = Query(None, description="Target URL to get cookies for"),
         retries: int = Query(5, ge=1, le=10, description="Number of retry attempts"),
         proxy: Optional[str] = Query(None, description="Proxy URL (optional)"),
+        bypassCookieCache: bool = Query(False, description="Force fresh cookie generation"),
         bypasser: CloakBypasser = Depends(get_bypasser),
     ):
         """Legacy endpoint: get Cloudflare clearance cookies, or mirror when x-hostname is present."""
@@ -103,7 +104,7 @@ def setup_routes(app: FastAPI):
             start_time = time.time()
             logger.info(f"Getting cookies for {url} (retries: {retries}, proxy: {'yes' if proxy else 'no'})")
 
-            data = await bypasser.get_or_generate_cookies(url, proxy)
+            data = await bypasser.get_or_generate_cookies(url, proxy, bypass_cache=bypassCookieCache)
 
             if not data:
                 raise HTTPException(status_code=500, detail="Failed to bypass Cloudflare protection")

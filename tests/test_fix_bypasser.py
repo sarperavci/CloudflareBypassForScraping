@@ -239,6 +239,31 @@ async def test_inflight_dedup(tmp_path, monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_bypass_cache_forces_fresh_cookie_generation(tmp_path, monkeypatch):
+    bp._browser_semaphores.clear()
+    bp._inflight_locks.clear()
+    b = make_bypasser(tmp_path)
+    launches = 0
+
+    async def fake_launch(**kwargs):
+        nonlocal launches
+        launches += 1
+        page = FakePage(html=NON_CF_HTML, title="home")
+        return FakeContext(page, cookies=[{"name": "session", "value": str(launches)}])
+
+    monkeypatch.setattr(bp.cb, "launch_context_async", fake_launch)
+
+    first = await b.get_or_generate_cookies("https://same.com")
+    fresh = await b.get_or_generate_cookies("https://same.com", bypass_cache=True)
+    cached = await b.get_or_generate_cookies("https://same.com")
+
+    assert first["cookies"]["session"] == "1"
+    assert fresh["cookies"]["session"] == "2"
+    assert cached["cookies"]["session"] == "2"
+    assert launches == 2
+
+
+@pytest.mark.asyncio
 async def test_geoip_flag(tmp_path, monkeypatch):
     b = make_bypasser(tmp_path)
     page = FakePage()

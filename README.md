@@ -109,6 +109,13 @@ Route the bypass through a proxy with the `proxy` query param:
 curl "http://localhost:8000/cookies?url=https://protected-site.com&proxy=http://user:pass@host:port"
 ```
 
+Force fresh cookie generation, even when a valid cache entry exists, with
+`bypassCookieCache=true` (or `bypassCookieCache=1`):
+
+```bash
+curl "http://localhost:8000/cookies?url=https://protected-site.com&bypassCookieCache=true"
+```
+
 It launches a stealth browser, navigates to the URL, and solves the Cloudflare
 challenge — non-interactive challenges resolve on their own, and interactive
 Turnstile checkboxes are located inside their shadow DOM and clicked natively.
