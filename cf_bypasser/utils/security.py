@@ -65,3 +65,16 @@ def is_safe_url(url: str) -> bool:
         return True
     except Exception:
         return False
+
+
+def redact_proxy(proxy: Optional[str]) -> Optional[str]:
+    """Return the proxy URL with its password replaced, for logging."""
+    if not proxy or "@" not in proxy:
+        return proxy
+    scheme, sep, rest = proxy.partition("://")
+    if not sep:
+        scheme, rest = "", proxy
+    userinfo, _, hostport = rest.rpartition("@")
+    if ":" in userinfo:
+        userinfo = userinfo.split(":", 1)[0] + ":***"
+    return f"{scheme}{sep}{userinfo}@{hostport}"

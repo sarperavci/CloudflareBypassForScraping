@@ -3,13 +3,14 @@ import logging
 import os
 from collections import namedtuple
 from typing import Optional, Dict, Any
-from urllib.parse import urlparse
+from urllib.parse import unquote, urlparse
 
 # Skip the per-launch PyPI version check (latency/offline-unfriendly in prod/CI)
 os.environ.setdefault("CLOAKBROWSER_AUTO_UPDATE", "false")
 
 import cloakbrowser as cb
 
+from cf_bypasser.utils.security import redact_proxy
 from cf_bypasser.utils.misc import cache_key, get_browser_init_lock, per_loop
 from cf_bypasser.utils.constants import (
     DEFAULT_TIMEOUT_MS,
@@ -90,16 +91,17 @@ class CloakBypasser:
         try:
             parsed = urlparse(proxy)
             if not parsed.hostname or not parsed.port:
-                self.log_message(f"Invalid proxy format: {proxy}")
+                self.log_message(f"Invalid proxy format: {redact_proxy(proxy)}")
                 return None
 
             proxy_config = {"server": f"{parsed.scheme}://{parsed.hostname}:{parsed.port}"}
+            # Credentials may be percent-encoded (the only way to pass "/", "?" or "#").
             if parsed.username and parsed.password:
-                proxy_config["username"] = parsed.username
-                proxy_config["password"] = parsed.password
+                proxy_config["username"] = unquote(parsed.username)
+                proxy_config["password"] = unquote(parsed.password)
             return proxy_config
         except Exception as e:
-            self.log_message(f"Error parsing proxy {proxy}: {e}")
+            self.log_message(f"Error parsing proxy {redact_proxy(proxy)}: {type(e).__name__}")
             return None
 
     async def setup_browser(self, proxy: Optional[str] = None, lang: str = "en", user_agent: Optional[str] = None, headless: bool = False) -> tuple:
@@ -113,7 +115,7 @@ class CloakBypasser:
                 self.log_message(f"Using proxy: {proxy_config['server']}")
             else:
                 # never silently fall back to direct: that leaks the real IP
-                raise ValueError(f"Invalid proxy, refusing to continue direct: {proxy}")
+                raise ValueError(f"Invalid proxy, refusing to continue direct: {redact_proxy(proxy)}")
 
         launch_kwargs = dict(
             headless=headless,
