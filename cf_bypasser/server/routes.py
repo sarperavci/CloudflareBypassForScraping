@@ -12,7 +12,7 @@ from cf_bypasser.server.models import (
     CookieResponse, CacheStatsResponse, CacheClearResponse, ErrorResponse,
 )
 from cf_bypasser.utils.constants import APP_VERSION, PROXY_SCHEMES, CF_COOKIE_PREFIXES
-from cf_bypasser.utils.security import is_safe_url
+from cf_bypasser.utils.security import is_safe_url, redact_proxy
 
 global_bypasser = None
 global_mirror = None
@@ -281,7 +281,7 @@ def setup_routes(app: FastAPI):
             request_path = f"/{path}" if path else "/"
             logger.info(f"Mirroring {request.method} request to {hostname}{request_path}")
             if proxy:
-                logger.info(f"Using proxy: {proxy}")
+                logger.info(f"Using proxy: {redact_proxy(proxy)}")
             if bypass_cache:
                 logger.info("x-bypass-cache header detected - forcing fresh cookie generation")
 
