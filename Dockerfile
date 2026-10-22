@@ -39,8 +39,11 @@ RUN apt-get update && apt-get install -y \
 WORKDIR /app
 COPY . .
 
-RUN chmod +x /app/docker-entrypoint.sh
-RUN chown -R ubuntu:ubuntu /app
+RUN sed -i 's/\r$//' /app/docker-entrypoint.sh \
+    && chmod +x /app/docker-entrypoint.sh
+RUN mkdir -p /tmp/.X11-unix \
+    && chmod 1777 /tmp/.X11-unix \
+    && chown -R ubuntu:ubuntu /app
 
 USER ubuntu
 

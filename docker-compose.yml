@@ -1,6 +1,8 @@
 services:
   cloudflare-bypass:
-    image: ghcr.io/sarperavci/cloudflarebypassforscraping:latest
+    build:
+        context: .
+        dockerfile: Dockerfile
     container_name: cloudflare-bypass
     ports:
       - "8000:8000"

@@ -364,22 +364,32 @@ class CloakBypasser:
             finally:
                 await self.cleanup_browser(context)
 
-    async def get_or_generate_cookies(self, url: str, proxy: Optional[str] = None) -> Optional[Dict[str, Any]]:
-        """Get cached cookies or generate new ones."""
+    async def get_or_generate_cookies(
+        self,
+        url: str,
+        proxy: Optional[str] = None,
+        bypass_cache: bool = False,
+    ) -> Optional[Dict[str, Any]]:
+        """Get cached cookies or generate new ones, optionally ignoring a valid cache entry."""
         hostname = urlparse(url).netloc
         key = cache_key(hostname, proxy)
 
-        cached = await self._read_valid_cache(key, proxy)
-        if cached:
-            return {"cookies": cached.cookies, "user_agent": cached.user_agent}
-
-        async with _inflight_lock(key):
-            # another waiter may have populated the cache while we queued
+        if not bypass_cache:
             cached = await self._read_valid_cache(key, proxy)
             if cached:
                 return {"cookies": cached.cookies, "user_agent": cached.user_agent}
 
-            self.log_message(f"No cached cookies for {key}, generating new ones...")
+        async with _inflight_lock(key):
+            # another waiter may have populated the cache while we queued
+            if not bypass_cache:
+                cached = await self._read_valid_cache(key, proxy)
+                if cached:
+                    return {"cookies": cached.cookies, "user_agent": cached.user_agent}
+
+            if bypass_cache:
+                self.log_message(f"Bypassing cached cookies for {key}, generating new ones...")
+            else:
+                self.log_message(f"No cached cookies for {key}, generating new ones...")
 
             async def extractor(context, page, status):
                 return await self.get_cookies_and_user_agent(context, page)

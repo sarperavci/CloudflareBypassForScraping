@@ -67,6 +67,14 @@ curl "http://localhost:8000/api/data" \
 ```bash
 curl "http://localhost:8000/cookies?url=https://nopecha.com/demo/cloudflare"
 ```
+
+Add `bypassCookieCache=true` (or `bypassCookieCache=1`) to ignore a valid cached entry and
+force a fresh challenge-solving attempt:
+
+```bash
+curl "http://localhost:8000/cookies?url=https://nopecha.com/demo/cloudflare&bypassCookieCache=true"
+```
+
 ```json
 {
   "cookies": {

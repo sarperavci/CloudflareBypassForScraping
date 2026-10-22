@@ -53,6 +53,25 @@ class TestCookiesEndpoint:
         assert "user_agent" in data, "Response should contain 'user_agent'"
         assert data["cookies"]["cf_clearance"] == "test_token_123"
         assert "Mozilla" in data["user_agent"]
+        mock_bypasser.get_or_generate_cookies.assert_awaited_once_with(
+            "https://example.com",
+            None,
+            bypass_cache=False,
+        )
+
+    @pytest.mark.parametrize("value", ["1", "true"])
+    def test_cookies_internal_api_can_bypass_cache(self, client, mock_bypasser, value):
+        response = client.get(
+            "/cookies",
+            params={"url": "https://example.com", "bypassCookieCache": value},
+        )
+
+        assert response.status_code == 200
+        mock_bypasser.get_or_generate_cookies.assert_awaited_once_with(
+            "https://example.com",
+            None,
+            bypass_cache=True,
+        )
     
     def test_cookies_mirror_with_x_hostname(self, client, mock_mirror):
         """Test that /cookies forwards to mirror handler when x-hostname IS present."""
