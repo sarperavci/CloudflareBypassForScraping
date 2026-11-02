@@ -19,6 +19,8 @@ CF_PRIORITY_COOKIES = ("cf_clearance", "__cf_bm", "__cfruid")
 DEFAULT_TIMEOUT_MS = 30000
 CHALLENGE_POLL_SECONDS = 0.25
 CHALLENGE_TIMEOUT_SECONDS = float(os.environ.get("CF_CHALLENGE_TIMEOUT", "30"))
+TURNSTILE_TIMEOUT_SECONDS = float(os.environ.get("CF_TURNSTILE_TIMEOUT", "30"))
+TURNSTILE_POLL_SECONDS = float(os.environ.get("CF_TURNSTILE_POLL", "0.2"))
 CLICK_COOLDOWN_SECONDS = 3  # let the widget react before clicking again
 
 # /html DOM-stability poll: sample page.content() until its size stops changing,

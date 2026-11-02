@@ -44,6 +44,48 @@ curl -H "x-auth-token: change-me" "http://localhost:8000/cookies?url=https://exa
 
 Requests without the header, or with a wrong value, get `401`. The `x-auth-token` header is stripped before mirrored requests reach the target site.
 
+## Turnstile token generation — `/turnstile`
+
+Generates Cloudflare Turnstile clearance tokens on-demand for target websites without loading heavy page assets.
+
+Instead of navigating the browser through the full target page (which may load heavy scripts, trackers, or images), navigation is intercepted at the CDP network layer to inject a minimal widget-only page bound to the target origin. The token is solved using the pooled Brave browsers (no new browser launched) and returned with the matching `user-agent`.
+
+### GET request
+```bash
+curl "http://localhost:8000/turnstile?url=https://example.com/login&sitekey=0x4AAAAAA..."
+```
+
+### POST request
+```bash
+curl -X POST "http://localhost:8000/turnstile" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "url": "https://example.com/login",
+    "sitekey": "0x4AAAAAA...",
+    "action": "login",
+    "cdata": "custom-payload",
+    "pagedata": "optional-page-data",
+    "proxy": "http://user:pass@host:port"
+  }'
+```
+
+### Response
+```json
+{
+  "token": "0.csb.XXXX.DUMMY.TOKEN.XXXX...",
+  "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36...",
+  "elapsed_time": 1.45,
+  "sitekey": "0x4AAAAAA...",
+  "url": "https://example.com/login"
+}
+```
+
+Supports:
+- Managed, non-interactive, and invisible Turnstile widgets.
+- Automatic clicking of interactive checkboxes located inside shadow roots and cross-origin iframes.
+- Per-request proxies (`http://`, `https://`, `socks4://`, `socks5://` with authentication).
+- Immediate browser reuse via disposable browser contexts.
+
 ## Raw bytes — `/fetch`
 
 Downloads any resource (PDF, image, JSON, ...) through the browser after clearing the challenge, and returns the original bytes with the upstream status code and `Content-Type`.

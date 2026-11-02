@@ -10,6 +10,7 @@ from cf_bypasser.core.bypasser import CFBypasser
 from cf_bypasser.core.mirror import RequestMirror
 from cf_bypasser.server.models import (
     BrowserPoolResponse, CookieResponse, CacheStatsResponse, CacheClearResponse, ErrorResponse,
+    TurnstileRequest, TurnstileResponse,
 )
 from cf_bypasser.utils.constants import APP_VERSION, PROXY_SCHEMES, CF_COOKIE_PREFIXES
 from cf_bypasser.utils.security import is_safe_url, redact_proxy
@@ -269,6 +270,104 @@ def setup_routes(app: FastAPI):
         if any(key.lower() == "x-hostname" for key in request.headers.keys()):
             return await mirror_request(request, "browsers", get_mirror())
         return BrowserPoolResponse(**bypasser.pool.stats())
+
+    @app.post("/turnstile", response_model=TurnstileResponse, responses={400: {"model": ErrorResponse}, 500: {"model": ErrorResponse}})
+    async def solve_turnstile_post(
+        request: Request,
+        turnstile_req: TurnstileRequest,
+        bypasser: CFBypasser = Depends(get_bypasser),
+    ):
+        """Generate a Turnstile clearance token by injecting a widget-only page into runtime browser."""
+        if any(key.lower() == "x-hostname" for key in request.headers.keys()):
+            return await mirror_request(request, "turnstile", get_mirror())
+
+        if not is_safe_url(turnstile_req.url):
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid or unsafe URL - localhost and private IPs are not allowed"
+            )
+
+        try:
+            logger.info(f"Solving Turnstile for {turnstile_req.url} (sitekey: {turnstile_req.sitekey})")
+            data = await bypasser.get_turnstile_token(
+                url=turnstile_req.url,
+                sitekey=turnstile_req.sitekey,
+                action=turnstile_req.action,
+                cdata=turnstile_req.cdata,
+                pagedata=turnstile_req.pagedata,
+                proxy=turnstile_req.proxy,
+            )
+            if not data or not data.get("token"):
+                raise HTTPException(status_code=500, detail="Failed to solve Cloudflare Turnstile challenge")
+
+            return TurnstileResponse(
+                token=data["token"],
+                user_agent=data["user_agent"],
+                elapsed_time=data["elapsed_time"],
+                sitekey=turnstile_req.sitekey,
+                url=turnstile_req.url,
+            )
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"Error solving Turnstile for {turnstile_req.url}: {e}")
+            raise HTTPException(status_code=500, detail="Internal server error")
+
+    @app.get("/turnstile", response_model=TurnstileResponse, responses={400: {"model": ErrorResponse}, 500: {"model": ErrorResponse}})
+    async def solve_turnstile_get(
+        request: Request,
+        url: Optional[str] = Query(None, description="Target webpage URL where Turnstile is verified"),
+        sitekey: Optional[str] = Query(None, description="Cloudflare Turnstile sitekey"),
+        action: Optional[str] = Query(None, description="Optional Turnstile action parameter"),
+        cdata: Optional[str] = Query(None, description="Optional Turnstile cData parameter"),
+        pagedata: Optional[str] = Query(None, description="Optional Turnstile chlPageData parameter"),
+        proxy: Optional[str] = Query(None, description="Proxy URL (optional)"),
+        bypasser: CFBypasser = Depends(get_bypasser),
+    ):
+        """Generate a Turnstile clearance token via GET query parameters."""
+        if any(key.lower() == "x-hostname" for key in request.headers.keys()):
+            return await mirror_request(request, "turnstile", get_mirror())
+
+        if not url:
+            raise HTTPException(status_code=400, detail="url parameter is required")
+        if not sitekey or not sitekey.strip():
+            raise HTTPException(status_code=400, detail="sitekey parameter is required")
+        if not is_safe_url(url):
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid or unsafe URL - localhost and private IPs are not allowed"
+            )
+        if proxy and not proxy.startswith(PROXY_SCHEMES):
+            raise HTTPException(
+                status_code=400,
+                detail="Proxy must start with http://, https://, socks4://, or socks5://"
+            )
+
+        try:
+            logger.info(f"Solving Turnstile for {url} (sitekey: {sitekey})")
+            data = await bypasser.get_turnstile_token(
+                url=url,
+                sitekey=sitekey.strip(),
+                action=action,
+                cdata=cdata,
+                pagedata=pagedata,
+                proxy=proxy,
+            )
+            if not data or not data.get("token"):
+                raise HTTPException(status_code=500, detail="Failed to solve Cloudflare Turnstile challenge")
+
+            return TurnstileResponse(
+                token=data["token"],
+                user_agent=data["user_agent"],
+                elapsed_time=data["elapsed_time"],
+                sitekey=sitekey.strip(),
+                url=url,
+            )
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"Error solving Turnstile for {url}: {e}")
+            raise HTTPException(status_code=500, detail="Internal server error")
 
     @app.api_route("/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"])
     async def mirror_request(

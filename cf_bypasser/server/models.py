@@ -59,3 +59,41 @@ class ErrorResponse(BaseModel):
     detail: str = Field(..., description="Error message")
     error_code: Optional[str] = Field(None, description="Error code")
     timestamp: Optional[str] = Field(None, description="Error timestamp")
+
+
+class TurnstileRequest(BaseModel):
+    url: str = Field(..., description="Target webpage URL where Turnstile is verified")
+    sitekey: str = Field(..., description="Cloudflare Turnstile sitekey")
+    action: Optional[str] = Field(None, description="Optional Turnstile action parameter")
+    cdata: Optional[str] = Field(None, description="Optional Turnstile cData parameter")
+    pagedata: Optional[str] = Field(None, description="Optional Turnstile chlPageData parameter")
+    proxy: Optional[str] = Field(None, description="Proxy URL (optional)")
+
+    @field_validator('proxy')
+    @classmethod
+    def validate_proxy(cls, v):
+        if v and not v.startswith(PROXY_SCHEMES):
+            raise ValueError('Proxy must start with http://, https://, socks4://, or socks5://')
+        return v
+
+    @field_validator('sitekey')
+    @classmethod
+    def validate_sitekey(cls, v):
+        if not v or not v.strip():
+            raise ValueError('sitekey cannot be empty')
+        return v.strip()
+
+    @field_validator('url')
+    @classmethod
+    def validate_url(cls, v):
+        if not v or not v.strip():
+            raise ValueError('url cannot be empty')
+        return v.strip()
+
+
+class TurnstileResponse(BaseModel):
+    token: str = Field(..., description="Generated Turnstile clearance token")
+    user_agent: str = Field(..., description="User agent of the browser that solved the widget")
+    elapsed_time: float = Field(..., description="Time taken to solve Turnstile in seconds")
+    sitekey: str = Field(..., description="Sitekey solved")
+    url: str = Field(..., description="Target URL")

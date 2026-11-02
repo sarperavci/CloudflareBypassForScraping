@@ -35,6 +35,8 @@ A rotating residential proxy can change its exit IP unexpectedly, which invalida
 | `CF_BROWSER_MAX_JOBS` | `200` | A browser is restarted after serving this many requests, to keep memory in check. |
 | `CF_JOB_TIMEOUT` | `120` | Seconds one request may hold a browser. On timeout the browser is killed and relaunched. |
 | `CF_CHALLENGE_TIMEOUT` | `30` | Seconds to keep polling/clicking the Turnstile checkbox before giving up. |
+| `CF_TURNSTILE_TIMEOUT` | `30` | Seconds to wait for Turnstile token generation before timing out. |
+| `CF_TURNSTILE_POLL` | `0.2` | Interval in seconds between status checks when solving Turnstile. |
 | `CF_MIRROR_MAX_RETRIES` | `2` | Extra attempts for a mirrored request after a 403 or network error. |
 | `CF_MIRROR_RETRY_DELAY` | `0.5` | Seconds to wait between mirror retries; raise it to avoid hammering a site. |
 | `CF_MAX_SESSIONS` | `128` | Maximum number of cached `curl_cffi` mirror sessions (LRU, one per `hostname:proxy`). The least-recently-used session is closed and evicted past this limit. |

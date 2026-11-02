@@ -10,13 +10,14 @@ from cf_bypasser.browser.context import BrowserContextSession
 from cf_bypasser.browser.pool import BrowserPool
 from cf_bypasser.browser.relay import RelayRegistry, needs_relay
 from cf_bypasser.cache.cookie_cache import CookieCache
-from cf_bypasser.core import challenge
+from cf_bypasser.core import challenge, turnstile
 from cf_bypasser.utils.constants import (
     CACHE_ENABLED,
     DEFAULT_CACHE_FILE,
     FETCH_MAX_BYTES,
     IP_CHECK_ENABLED,
     JOB_TIMEOUT_SECONDS,
+    TURNSTILE_TIMEOUT_SECONDS,
 )
 from cf_bypasser.utils.ipcheck import get_exit_ip
 from cf_bypasser.utils.misc import cache_key, per_loop
@@ -162,6 +163,38 @@ class CFBypasser:
                 "body": bytes(body),
             }
 
+    def _job_turnstile(
+        self,
+        browser: Any,
+        url: str,
+        sitekey: str,
+        action: Optional[str],
+        cdata: Optional[str],
+        pagedata: Optional[str],
+        proxy_server: Optional[str],
+        timeout: float,
+    ) -> Optional[Dict[str, Any]]:
+        """Worker thread job: lease context, inject widget-only page into runtime browser, solve turnstile."""
+        with BrowserContextSession(browser, proxy_server) as session:
+            result = turnstile.inject_and_solve_turnstile(
+                session.tab,
+                url=url,
+                sitekey=sitekey,
+                action=action,
+                cdata=cdata,
+                pagedata=pagedata,
+                timeout=timeout,
+                log=self.log_message,
+            )
+            if not result.success or not result.token:
+                return None
+            return {
+                "token": result.token,
+                "user_agent": session.user_agent(),
+                "elapsed_time": result.elapsed_seconds,
+                "cookies": session.get_cookies(),
+            }
+
     async def _run_in_browser(self, url, proxy, key, *, restore_cookies: bool, mode: str):
         """Lease a browser, solve in a fresh context, cache trustworthy cookies. Returns data dict or None."""
         self.cookie_cache.clear_expired()
@@ -240,6 +273,53 @@ class CFBypasser:
         key = cache_key(urlparse(url).netloc, proxy)
         self.log_message(f"Fetching bytes for {url}...")
         return await self._run_in_browser(url, proxy, key, restore_cookies=not bypass_cache, mode="fetch")
+
+    async def get_turnstile_token(
+        self,
+        url: str,
+        sitekey: str,
+        action: Optional[str] = None,
+        cdata: Optional[str] = None,
+        pagedata: Optional[str] = None,
+        proxy: Optional[str] = None,
+        timeout: Optional[float] = None,
+    ) -> Optional[Dict[str, Any]]:
+        """Generate a Cloudflare Turnstile token by injecting a widget-only page into a runtime browser."""
+        solve_timeout = timeout or TURNSTILE_TIMEOUT_SECONDS
+        total_job_timeout = max(JOB_TIMEOUT_SECONDS, solve_timeout + 15)
+        self.log_message(f"Starting Turnstile token generation for {url} (sitekey: {sitekey})...")
+        relayed = False
+        try:
+            proxy_server, relayed = await self._resolve_proxy(proxy)
+            async with self.pool.lease() as slot:
+                try:
+                    data = await asyncio.wait_for(
+                        self.pool.run(
+                            self._job_turnstile,
+                            slot.browser,
+                            url,
+                            sitekey,
+                            action,
+                            cdata,
+                            pagedata,
+                            proxy_server,
+                            solve_timeout,
+                        ),
+                        timeout=total_job_timeout,
+                    )
+                except BaseException:
+                    slot.poisoned = True
+                    raise
+            return data
+        except asyncio.TimeoutError:
+            self.log_message(f"Turnstile job for {url} exceeded {total_job_timeout}s; restarting that browser")
+            return None
+        except Exception as e:
+            self.log_message(f"Error solving Turnstile for {url}: {e}")
+            return None
+        finally:
+            if relayed:
+                await self.relays.release(proxy)
 
     async def cleanup(self) -> None:
         """Quit all pooled browsers and close proxy relays."""

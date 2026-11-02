@@ -2,7 +2,7 @@
 
 > ⭐ **Thank you for 2,500+ stars!** Introducing **Version 3.0**: a reusable pool of headless Brave browsers driven by DrissionPage, per-request proxies (HTTP, HTTPS, SOCKS) without restarting the browser, faster Turnstile solving, a `/fetch` endpoint for files, optional `x-auth-token` auth and a lighter Docker image.
 
-Bypass Cloudflare protection with ease. Supports cookie generation and request mirroring for any HTTP method. 
+Bypass Cloudflare protection with ease. Supports cookie generation, Turnstile token generation, and request mirroring for any HTTP method. 
 
 ## Sponsors
 
@@ -93,6 +93,39 @@ clears **both** obstacles at once: the JavaScript challenge and TLS
 fingerprinting — with no browser needed on your side.
 
 Use this when you want a drop-in proxy that "just works" for any HTTP method.
+
+## 🛡️ Turnstile token generation — `/turnstile`
+
+Generate Cloudflare Turnstile clearance tokens on-demand for target websites:
+
+```bash
+curl "http://localhost:8000/turnstile?url=https://example.com/login&sitekey=0x4AAAAAA..."
+```
+
+Or via `POST`:
+
+```bash
+curl -X POST "http://localhost:8000/turnstile" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "url": "https://example.com/login",
+    "sitekey": "0x4AAAAAA...",
+    "action": "login",
+    "proxy": "http://user:pass@host:port"
+  }'
+```
+
+```json
+{
+  "token": "0.csb.XXXX.DUMMY.TOKEN.XXXX...",
+  "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)...",
+  "elapsed_time": 1.45,
+  "sitekey": "0x4AAAAAA...",
+  "url": "https://example.com/login"
+}
+```
+
+Instead of loading heavy, bloated web pages, it intercepts navigation at the CDP network layer and injects a clean, widget-only page for the target domain into a runtime Brave browser. Interactive Turnstile checkboxes are clicked automatically inside shadow roots and iframes.
 
 See **[docs/USAGE.md](docs/USAGE.md)** for control headers, the `/html`
 endpoint, and more.
